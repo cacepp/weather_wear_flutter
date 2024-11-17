@@ -1,4 +1,4 @@
-name: WeatherWear
+name: weather_wear_flutter
 description: A new Flutter project.
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -19,9 +19,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^2.0.0
+  flutter_lints: ^5.0.0
+  flutter_native_splash: ^2.3.0
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
+
+flutter_native_splash:
+  color: "#ABDDF0"
+  image: assets/images/myau3.png
+  android: true
+  ios: true
+  fullscreen: true
+  android_gravity: center
