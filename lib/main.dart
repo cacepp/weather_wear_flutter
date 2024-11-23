@@ -1,8 +1,11 @@
-import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Для работы с .env
+import 'services/weather_service.dart'; // Импорт вашего WeatherService
 
-void main() {
+void main() async {
+  // Загружаем .env перед запуском приложения
+  await dotenv.load(fileName: "env/.env");
   runApp(MyApp());
 }
 
@@ -12,194 +15,123 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => MyAppState(),
+      create: (context) => WeatherAppState(),
       child: MaterialApp(
-        title: 'Namer App',
+        title: 'Weather App',
         theme: ThemeData(
           useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: Color.fromRGBO(171, 221, 240, 1)),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Color.fromRGBO(171, 221, 240, 1),
+          ),
         ),
-        home: MyHomePage(),
+        home: WeatherHomePage(),
       ),
     );
   }
 }
 
-class MyAppState extends ChangeNotifier {
-  var current = WordPair.random();
+class WeatherAppState extends ChangeNotifier {
+  String city = '';
+  String currentWeather = '';
+  List<String> weatherForecast = [];
+  final WeatherService weatherService = WeatherService();
 
-  void getNext() {
-    current = WordPair.random();
+  // Обновляем город
+  void updateCity(String newCity) {
+    city = newCity;
     notifyListeners();
   }
 
-  var favorites = <WordPair>[];
-
-  void toggleFavorite() {
-    if (favorites.contains(current)) {
-      favorites.remove(current);
-    } else {
-      favorites.add(current);
+  // Получаем текущую погоду
+  Future<void> fetchCurrentWeather() async {
+    try {
+      final weather = await weatherService.fetchCurrentWeather(city);
+      currentWeather = weather;
+      notifyListeners();
+    } catch (e) {
+      currentWeather = 'Error: $e';
+      notifyListeners();
     }
-    notifyListeners();
+  }
+
+  // Получаем прогноз на 5 дней
+  Future<void> fetchWeatherForecast() async {
+    try {
+      final forecast = await weatherService.fetchWeatherForecast(city);
+      weatherForecast = forecast;
+      notifyListeners();
+    } catch (e) {
+      weatherForecast = ['Error: $e'];
+      notifyListeners();
+    }
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class WeatherHomePage extends StatefulWidget {
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<WeatherHomePage> createState() => _WeatherHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  var selectedIndex = 0;
-
+class _WeatherHomePageState extends State<WeatherHomePage> {
   @override
   Widget build(BuildContext context) {
-    Widget page;
-    switch (selectedIndex) {
-      case 0:
-        page = GeneratorPage();
-      case 1:
-        page = FavoritesPage();
-      default:
-        throw UnimplementedError('no widget for $selectedIndex');
-    }
+    var appState = context.watch<WeatherAppState>();
 
-    return LayoutBuilder(builder: (context, constraints) {
-      return Scaffold(
-        body: Row(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Weather App'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SafeArea(
-              child: NavigationRail(
-                extended: constraints.maxWidth >= 600,
-                destinations: [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.home),
-                    label: Text('Home'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.favorite),
-                    label: Text('Favorites'),
-                  ),
-                ],
-                selectedIndex: selectedIndex,
-                onDestinationSelected: (value) {
-                  setState(() {
-                    selectedIndex = value;
-                  });
-                },
+            // Поле ввода города
+            TextField(
+              decoration: InputDecoration(
+                labelText: 'Enter City',
+                border: OutlineInputBorder(),
               ),
+              onChanged: (value) {
+                appState.updateCity(value);
+              },
             ),
-            Expanded(
-              child: Container(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: page,
+            SizedBox(height: 16),
+            // Кнопка для получения текущей погоды
+            ElevatedButton(
+              onPressed: () {
+                if (appState.city.isNotEmpty) {
+                  appState.fetchCurrentWeather();
+                  appState.fetchWeatherForecast();
+                }
+              },
+              child: Text('Get Weather'),
+            ),
+            SizedBox(height: 16),
+            // Отображение текущей погоды
+            if (appState.currentWeather.isNotEmpty) ...[
+              Text(
+                'Current Weather:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            ),
+              Text(appState.currentWeather),
+            ],
+            SizedBox(height: 16),
+            // Отображение прогноза на 5 дней
+            if (appState.weatherForecast.isNotEmpty) ...[
+              Text(
+                '5-Day Forecast:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              for (var forecast in appState.weatherForecast)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Text(forecast),
+                ),
+            ],
           ],
         ),
-      );
-    });
-  }
-}
-
-class GeneratorPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
-    var pair = appState.current;
-
-    IconData icon;
-    if (appState.favorites.contains(pair)) {
-      icon = Icons.favorite;
-    } else {
-      icon = Icons.favorite_border;
-    }
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          BigCard(pair: pair),
-          SizedBox(height: 10),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  appState.toggleFavorite();
-                },
-                icon: Icon(icon),
-                label: Text('Like'),
-              ),
-              SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: () {
-                  appState.getNext();
-                },
-                child: Text('Next'),
-              ),
-            ],
-          ),
-        ],
       ),
-    );
-  }
-}
-
-class BigCard extends StatelessWidget {
-  const BigCard({
-    super.key,
-    required this.pair,
-  });
-
-  final WordPair pair;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = theme.textTheme.displayMedium!.copyWith(
-      color: theme.colorScheme.onPrimary,
-    );
-
-    return Card(
-      color: theme.colorScheme.primary,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Text(
-          pair.asLowerCase,
-          style: style,
-          semanticsLabel: "${pair.first} ${pair.second}",
-        ),
-      ),
-    );
-  }
-}
-
-class FavoritesPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
-
-    if (appState.favorites.isEmpty) {
-      return Center(
-        child: Text('No favorites yet.'),
-      );
-    }
-
-    return ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text('You have '
-              '${appState.favorites.length} favorites:'),
-        ),
-        for (var pair in appState.favorites)
-          ListTile(
-            leading: Icon(Icons.favorite),
-            title: Text(pair.asLowerCase),
-          ),
-      ],
     );
   }
 }

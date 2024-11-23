@@ -1,4 +1,4 @@
-name: WeatherWear
+name: weather_wear_flutter
 description: A new Flutter project.
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -9,13 +9,13 @@ environment:
   sdk: ^3.1.1
 
 dependencies:
+  english_words: ^4.0.0
   flutter_dotenv: ^5.2.1
   http: ^1.2.2
+  provider: ^6.1.2
   flutter:
     sdk: flutter
 
-  english_words: ^4.0.0
-  provider: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -27,3 +27,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - env/.env

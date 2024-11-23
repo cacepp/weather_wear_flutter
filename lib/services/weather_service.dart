@@ -1,14 +1,20 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Импортируем flutter_dotenv
 
 class WeatherService {
-  final String apiKey = 'API'; // Замените на свой API ключ
   final String currentWeatherUrl = 'https://api.openweathermap.org/data/2.5/weather';
   final String forecastUrl = 'https://api.openweathermap.org/data/2.5/forecast';
 
   // Получение текущей погоды
   Future<String> fetchCurrentWeather(String city) async {
     try {
+      // Достаем API_KEY из .env
+      final apiKey = dotenv.env['API_KEY'];
+      if (apiKey == null || apiKey.isEmpty) {
+        throw Exception('API_KEY is not defined in .env');
+      }
+
       final response = await http.get(Uri.parse(
           '$currentWeatherUrl?q=$city&units=metric&appid=$apiKey'));
 
@@ -28,6 +34,12 @@ class WeatherService {
   // Получение прогноза на 5 дней
   Future<List<String>> fetchWeatherForecast(String city) async {
     try {
+      // Достаем API_KEY из .env
+      final apiKey = dotenv.env['API_KEY'];
+      if (apiKey == null || apiKey.isEmpty) {
+        throw Exception('API_KEY is not defined in .env');
+      }
+
       final response = await http.get(Uri.parse(
           '$forecastUrl?q=$city&units=metric&appid=$apiKey'));
 
