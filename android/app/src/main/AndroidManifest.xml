@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="weather_wear_flutter"
+        android:label="Weather Wear"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

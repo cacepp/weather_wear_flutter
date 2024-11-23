@@ -1,119 +1,205 @@
-import 'dart:io';
+import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
-import 'services/weather_service.dart';
+import 'package:provider/provider.dart';
 
-void main() => runApp(MyApp());
+void main() {
+  runApp(MyApp());
+}
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Weather App',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: WeatherScreen(),
+    return ChangeNotifierProvider(
+      create: (context) => MyAppState(),
+      child: MaterialApp(
+        title: 'Namer App',
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(seedColor: Color.fromRGBO(171, 221, 240, 1)),
+        ),
+        home: MyHomePage(),
+      ),
     );
   }
 }
 
-class WeatherScreen extends StatefulWidget {
-  @override
-  _WeatherScreenState createState() => _WeatherScreenState();
+class MyAppState extends ChangeNotifier {
+  var current = WordPair.random();
+
+  void getNext() {
+    current = WordPair.random();
+    notifyListeners();
+  }
+
+  var favorites = <WordPair>[];
+
+  void toggleFavorite() {
+    if (favorites.contains(current)) {
+      favorites.remove(current);
+    } else {
+      favorites.add(current);
+    }
+    notifyListeners();
+  }
 }
 
-class _WeatherScreenState extends State<WeatherScreen> {
-  final TextEditingController _controller = TextEditingController();
-  String _city = '';
-  String _currentWeather = '';
-  List<String> _weatherForecast = [];
-  final WeatherService _weatherService = WeatherService();
+class MyHomePage extends StatefulWidget {
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
 
-  Future<void> fetchWeatherData() async {
-    try {
-      // Получаем текущую погоду
-      final currentWeather = await _weatherService.fetchCurrentWeather(_city);
-      // Получаем прогноз на 5 дней
-      final forecast = await _weatherService.fetchWeatherForecast(_city);
-
-      setState(() {
-        _currentWeather = currentWeather;
-        _weatherForecast = forecast;
-      });
-    } catch (e) {
-      setState(() {
-        _currentWeather = 'Error: $e';
-        _weatherForecast = [];
-      });
-    }
-  }
+class _MyHomePageState extends State<MyHomePage> {
+  var selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Weather Forecast')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    Widget page;
+    switch (selectedIndex) {
+      case 0:
+        page = GeneratorPage();
+      case 1:
+        page = FavoritesPage();
+      default:
+        throw UnimplementedError('no widget for $selectedIndex');
+    }
+
+    return LayoutBuilder(builder: (context, constraints) {
+      return Scaffold(
+        body: Row(
           children: [
-            // Ввод названия города
-            TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                labelText: 'Enter City',
-                border: OutlineInputBorder(),
+            SafeArea(
+              child: NavigationRail(
+                extended: constraints.maxWidth >= 600,
+                destinations: [
+                  NavigationRailDestination(
+                    icon: Icon(Icons.home),
+                    label: Text('Home'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.favorite),
+                    label: Text('Favorites'),
+                  ),
+                ],
+                selectedIndex: selectedIndex,
+                onDestinationSelected: (value) {
+                  setState(() {
+                    selectedIndex = value;
+                  });
+                },
               ),
-              onChanged: (value) {
-                setState(() {
-                  _city = value;
-                });
-              },
             ),
-            SizedBox(height: 16),
-            // Кнопка для запроса данных
-            ElevatedButton(
-              onPressed: () {
-                if (_city.isNotEmpty) {
-                  fetchWeatherData();
-                }
-              },
-              child: Text('Get Weather'),
+            Expanded(
+              child: Container(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: page,
+              ),
             ),
-            SizedBox(height: 16),
-            // Кнопка для закрытия приложения
-            ElevatedButton(
-              onPressed: () {
-                exit(0); // Завершает процесс приложения
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, // Цвет кнопки
-              ),
-              child: Text('Exit App'),
-            ),
-            SizedBox(height: 16),
-            // Отображение текущей погоды
-            if (_currentWeather.isNotEmpty) ...[
-              Text(
-                'Current Weather:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Text(_currentWeather),
-            ],
-            SizedBox(height: 16),
-            // Отображение прогноза погоды на 5 дней
-            if (_weatherForecast.isNotEmpty) ...[
-              Text(
-                '5-Day Forecast:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              for (var weather in _weatherForecast)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: Text(weather),
-                ),
-            ],
           ],
         ),
+      );
+    });
+  }
+}
+
+class GeneratorPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    var appState = context.watch<MyAppState>();
+    var pair = appState.current;
+
+    IconData icon;
+    if (appState.favorites.contains(pair)) {
+      icon = Icons.favorite;
+    } else {
+      icon = Icons.favorite_border;
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          BigCard(pair: pair),
+          SizedBox(height: 10),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () {
+                  appState.toggleFavorite();
+                },
+                icon: Icon(icon),
+                label: Text('Like'),
+              ),
+              SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: () {
+                  appState.getNext();
+                },
+                child: Text('Next'),
+              ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class BigCard extends StatelessWidget {
+  const BigCard({
+    super.key,
+    required this.pair,
+  });
+
+  final WordPair pair;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = theme.textTheme.displayMedium!.copyWith(
+      color: theme.colorScheme.onPrimary,
+    );
+
+    return Card(
+      color: theme.colorScheme.primary,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Text(
+          pair.asLowerCase,
+          style: style,
+          semanticsLabel: "${pair.first} ${pair.second}",
+        ),
+      ),
+    );
+  }
+}
+
+class FavoritesPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    var appState = context.watch<MyAppState>();
+
+    if (appState.favorites.isEmpty) {
+      return Center(
+        child: Text('No favorites yet.'),
+      );
+    }
+
+    return ListView(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text('You have '
+              '${appState.favorites.length} favorites:'),
+        ),
+        for (var pair in appState.favorites)
+          ListTile(
+            leading: Icon(Icons.favorite),
+            title: Text(pair.asLowerCase),
+          ),
+      ],
     );
   }
 }
