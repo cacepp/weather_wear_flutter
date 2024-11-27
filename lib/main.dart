@@ -160,53 +160,56 @@ class _WeatherPageState extends State<WeatherPage> {
     var appState = context.watch<AppState>();
 
     return Center(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Поле ввода города
-          TextField(
-            decoration: InputDecoration(
-              labelText: 'Enter City',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (value) {
-              appState.updateCity(value);
-            },
-          ),
-          SizedBox(height: 16),
-          // Кнопка для получения текущей погоды
-          ElevatedButton(
-            onPressed: () {
-              if (appState.city.isNotEmpty) {
-                appState.fetchCurrentWeather();
-                appState.fetchWeatherForecast();
-              }
-            },
-            child: Text('Get Weather'),
-          ),
-          SizedBox(height: 16),
-          // Отображение текущей погоды
-          if (appState.currentWeather.isNotEmpty) ...[
-            Text(
-              'Current Weather:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            Text(appState.currentWeather),
-          ],
-          SizedBox(height: 16),
-          // Отображение прогноза на 5 дней
-          if (appState.weatherForecast.isNotEmpty) ...[
-            Text(
-              '5-Day Forecast:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            for (var forecast in appState.weatherForecast)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: Text(forecast),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Поле ввода города
+            TextField(
+              decoration: InputDecoration(
+                labelText: 'Enter City',
+                border: OutlineInputBorder(),
               ),
+              onChanged: (value) {
+                appState.updateCity(value);
+              },
+            ),
+            SizedBox(height: 16),
+            // Кнопка для получения текущей погоды
+            ElevatedButton(
+              onPressed: () {
+                if (appState.city.isNotEmpty) {
+                  appState.fetchCurrentWeather();
+                  appState.fetchWeatherForecast();
+                }
+              },
+              child: Text('Get Weather'),
+            ),
+            SizedBox(height: 16),
+            // Отображение текущей погоды
+            if (appState.currentWeather.isNotEmpty) ...[
+              Text(
+                'Current Weather:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              Text(appState.currentWeather),
+            ],
+            SizedBox(height: 16),
+            // Отображение прогноза на 5 дней
+            if (appState.weatherForecast.isNotEmpty) ...[
+              Text(
+                '5-Day Forecast:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              for (var forecast in appState.weatherForecast)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Text(forecast),
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
