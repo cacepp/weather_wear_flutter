@@ -1,125 +1,339 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_switch/flutter_switch.dart';
+import 'package:weather_wear_flutter/pages/city_picker_page.dart';
+import 'package:weather_wear_flutter/pages/date_picker_page.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(App());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class App extends StatelessWidget {
+  const App({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+    return ChangeNotifierProvider(
+      create: (context) => AppState(),
+      child: MaterialApp(
+        title: 'Weather Wear',
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(seedColor: Color.fromRGBO(171, 221, 240, 1)),
+        ),
+        home: HomePage(),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+class AppState extends ChangeNotifier {
+  //TODO: вынести состояние страницы настроек в глобальное (т.е. сюда)
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class HomePage extends StatefulWidget {
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
 
-  void _incrementCounter() {
+class _HomePageState extends State<HomePage> {
+  var _selectedIndex = 1;
+  var _selectedPageName = 'Погода';
+
+  @override
+  Widget build(BuildContext context) {
+    Widget page;
+    switch (_selectedIndex) {
+      case 0:
+        page = HistoryPage();
+        _selectedPageName = 'История';
+      case 1:
+        page = WeatherPage();
+        _selectedPageName = 'Погода';
+      case 2:
+        page = SettingsPage();
+        _selectedPageName = 'Настройки';
+      default:
+        throw UnimplementedError('no widget for $_selectedIndex');
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+
+        title: Text(
+          _selectedPageName,
+          style: TextStyle(
+            fontSize: 40.0,
+          ),
+        ),
+        foregroundColor: Color.fromRGBO(42, 58, 74, 1),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SafeArea(
+              child:
+              Container(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: page,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: BottomNavigationBar(
+              items: [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.history),
+                  label: 'История',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.cloud),
+                  label: 'Погода'
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings),
+                  label: 'Настройки',
+                ),
+              ],
+              currentIndex: _selectedIndex,
+              onTap: (value) {
+                setState(() {
+                  _selectedIndex = value;
+                });
+              },
+
+            ),
+          ),
+        ],
+      )
+    );
+  }
+}
+
+class WeatherPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    //TODO: сделать страницу с погодой (слайдер)
+    return Placeholder();
+  }
+}
+
+class HistoryPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    //TODO: сделать страницу с историей запросов
+    return Placeholder();
+  }
+}
+
+class SettingsPage extends StatefulWidget {
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  bool _temperatureUnit = false;
+  bool _notifications = false;
+  bool _gender = false;
+  String _birthDate = '';
+  String _city = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _temperatureUnit = prefs.getBool('temperature') ?? true;
+      _notifications = prefs.getBool('notifications') ?? false;
+      _gender = prefs.getBool('gender') ?? true;
+      _birthDate = prefs.getString('birthDate') ?? 
+          DateTime.now().toIso8601String();
+      _city = prefs.getString('city') ?? 'Не выбран';
+    });
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      prefs.setBool('temperature', _temperatureUnit);
+      prefs.setBool('notifications', _notifications);
+      prefs.setBool('gender', _gender);
+      prefs.setString('birthDate', _birthDate);
+      prefs.setString('city', _city);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Единица измерения\n температуры', style: TextStyle(fontSize: 20)),
+                FlutterSwitch(
+                  value: _temperatureUnit,
+                  width: 104.0,
+                  height: 47.0,
+                  borderRadius: 50.0,
+                  valueFontSize: 25.0,
+                  switchBorder: Border(
+                      top: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                      right: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                      bottom: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                      left: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                  ),
+                  activeText: "°С",
+                  activeTextColor: Color.fromRGBO(255, 255, 255, 1),
+                  activeColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveText: "°F",
+                  inactiveTextColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveColor: Color.fromRGBO(255, 255, 255, 1),
+                  inactiveToggleColor: Color.fromRGBO(0, 114, 188, 1),
+                  showOnOff: true,
+                  toggleSize: 37.0,
+                  onToggle: (val) {
+                    setState(() {
+                      _temperatureUnit = val;
+                      print(_temperatureUnit);
+                    });
+                    _saveSettings();
+                  },
+                ),
+              ],
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            SizedBox(height: 24,),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Город\n$_city', style: TextStyle(fontSize: 20)),
+                ElevatedButton(
+                  onPressed: () async {
+                    String? selectedCity = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CityPickerPage()),
+                    );
+                    if (selectedCity != null) {
+                      setState(() {
+                        _city = selectedCity;
+                      });
+                      _saveSettings();
+                    }
+                  },
+                  child: Text('Изменить')
+                )
+              ],
             ),
+            SizedBox(height: 24,),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Уведомления', style: TextStyle(fontSize: 20)),
+                FlutterSwitch(
+                  value: _notifications,
+                  width: 104.0,
+                  height: 47.0,
+                  borderRadius: 50.0,
+                  valueFontSize: 25.0,
+                  switchBorder: Border(
+                    top: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    right: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    bottom: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    left: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                  ),
+                  activeText: "ON",
+                  activeTextColor: Color.fromRGBO(255, 255, 255, 1),
+                  activeColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveText: "OFF",
+                  inactiveTextColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveColor: Color.fromRGBO(255, 255, 255, 1),
+                  inactiveToggleColor: Color.fromRGBO(0, 114, 188, 1),
+                  showOnOff: true,
+                  toggleSize: 37.0,
+                  onToggle: (val) {
+                    setState(() {
+                      _notifications = val;
+                      print(_notifications);
+                    });
+                    _saveSettings();
+                  },
+                ),
+              ],
+            ),
+            SizedBox(height: 24,),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Пол', style: TextStyle(fontSize: 20)),
+                FlutterSwitch(
+                  value: _gender,
+                  width: 104.0,
+                  height: 47.0,
+                  borderRadius: 50.0,
+                  valueFontSize: 25.0,
+                  switchBorder: Border(
+                    top: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    right: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    bottom: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    left: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                  ),
+                  activeText: "М",
+                  activeTextColor: Color.fromRGBO(255, 255, 255, 1),
+                  activeColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveText: "Ж",
+                  inactiveTextColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveColor: Color.fromRGBO(255, 255, 255, 1),
+                  inactiveToggleColor: Color.fromRGBO(0, 114, 188, 1),
+                  showOnOff: true,
+                  toggleSize: 37.0,
+                  onToggle: (val) {
+                    setState(() {
+                      _gender = val;
+                      print(_gender);
+                    });
+                    _saveSettings();
+                  },
+                ),
+              ],
+            ),
+            SizedBox(height: 24,),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Дата рождения\n${_birthDate.split('T')[0]}',
+                  style: TextStyle(fontSize: 20)
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    String? selectedDate = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => DatePickerPage()),
+                    );
+                    if (selectedDate != null) {
+                      setState(() {
+                        _birthDate = selectedDate;
+                      });
+                      _saveSettings();
+                    }
+                  },
+                  child: Text('Изменить')
+                )
+              ],
+            ),
+            SizedBox(height: 24,),
+
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
