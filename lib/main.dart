@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_switch/flutter_switch.dart';
@@ -7,7 +8,8 @@ import 'package:weather_wear_flutter/pages/date_picker_page.dart';
 
 import 'services/weather_service.dart';
 
-void main() {
+void main() async {
+  await dotenv.load(fileName: "env/.env");
   runApp(App());
 }
 
@@ -247,7 +249,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _temperatureUnit = prefs.getBool('temperature') ?? true;
       _notifications = prefs.getBool('notifications') ?? false;
       _gender = prefs.getBool('gender') ?? true;
-      _birthDate = prefs.getString('birthDate') ?? 
+      _birthDate = prefs.getString('birthDate') ??
           DateTime.now().toIso8601String();
       _city = prefs.getString('city') ?? 'Не выбран';
     });
