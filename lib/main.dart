@@ -5,11 +5,51 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_switch/flutter_switch.dart';
 import 'package:weather_wear_flutter/pages/city_picker_page.dart';
 import 'package:weather_wear_flutter/pages/date_picker_page.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'dart:async';
 
 import 'services/weather_service.dart';
+import 'services/db.dart';
+
+Future<Database> initDatabase() async {
+  try {
+    final databasePath = await getDatabasesPath();
+    final path = join(databasePath, 'recom.db');
+
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) {
+        return db.execute(
+          'CREATE TABLE tbl_history ('
+              'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+              'Temperature REAL, '
+              'Wet REAL, '
+              'WindDirection TEXT, '
+              'WindSpeed REAL, '
+              'Precipitation TEXT, '
+              'FeelingTemperature REAL, '
+              'Date TEXT, '
+              'RecommendationText TEXT, '
+              'UserRating INTEGER'
+              ')',
+        );
+      },
+    );
+  } catch (e) {
+    print('Error initializing database: $e');
+    rethrow; // Пробрасываем исключение дальше
+  }
+}
 
 void main() async {
   await dotenv.load(fileName: "env/.env");
+
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final db = await initDatabase();
+
   runApp(App());
 }
 
