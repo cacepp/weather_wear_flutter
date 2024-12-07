@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // Импортируем flutter_dotenv
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class WeatherService {
   final String currentWeatherUrl = 'https://api.openweathermap.org/data/2.5/weather';
