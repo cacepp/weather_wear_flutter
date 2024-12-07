@@ -87,6 +87,7 @@ def main():
     output_filename = 'res.csv'
     headers = [
         'Temperature', 'Wind_Speed', 'Precipitation', 'Category', 
+        'Sex', 'Age', 
         'Head_Clothing', 'Body_Clothing', 'Legs_Clothing', 'Shoes_Clothing',
         'Arms_Clothing', 'Neck_Clothing'
     ]
@@ -118,11 +119,17 @@ def main():
             arms = select_clothing(clothing_dict, category, 'Руки') if 'Руки' in clothing_dict else ''
             neck = select_clothing(clothing_dict, category, 'Шея') if 'Шея' in clothing_dict else ''
             
+            # Генерируем случайный пол и возраст
+            sex = random.choice(['male', 'female'])
+            age = random.randint(18, 65)
+
             writer.writerow([
                 temperature,
                 wind_speed,
                 precipitation,
                 category,
+                sex,
+                age,
                 head,
                 body,
                 legs,
@@ -135,7 +142,7 @@ def main():
     if records_generated < 100:
         print(f"Успешно создано {records_generated} записей из запрошенных 100. Возможно, недостаточно данных в 'file.csv'.")
     else:
-        print(f"Файл '{output_filename}' успешно создан с 100 записями.")
+        print(f"Файл '{output_filename}' успешно создан с {records_generated} записями.")
 
 if __name__ == "__main__":
     main()
