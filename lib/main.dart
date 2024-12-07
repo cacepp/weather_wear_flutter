@@ -5,11 +5,46 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_switch/flutter_switch.dart';
 import 'package:weather_wear_flutter/pages/city_picker_page.dart';
 import 'package:weather_wear_flutter/pages/date_picker_page.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'dart:async';
 
 import 'services/weather_service.dart';
+import 'services/db.dart';
 
 void main() async {
   await dotenv.load(fileName: "env/.env");
+
+  WidgetsFlutterBinding.ensureInitialized();
+  final database = openDatabase(
+    // Set the path to the database. Note: Using the `join` function from the
+    // `path` package is best practice to ensure the path is correctly
+    // constructed for each platform.
+    join(await getDatabasesPath(), 'recom.db'),
+
+    // When the database is first created, create a table to store dogs.
+    onCreate: (db, version) {
+      // Run the CREATE TABLE statement on the database.
+      return db.execute(
+        'CREATE TABLE tbl_history('
+          'id INTEGER PRIMARY KEY, '
+          'Temperature REAL, '
+          'Wet REAL, '
+          'WindDirection TEXT, '
+          'WindSpeed REAL, '
+          'Precipitation TEXT, '
+          'FeelingTemperature REAL, '
+          'Date TEXT, '
+          'RecommendationText TEXT, '
+          'UserRating INTEGER'
+        ')',
+      );
+    },
+    version: 1,
+  );
+
+  final db = await database;
+
   runApp(App());
 }
 
