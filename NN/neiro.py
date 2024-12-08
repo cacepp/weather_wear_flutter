@@ -10,17 +10,20 @@ import matplotlib.pyplot as plt
 import pickle
 
 # 1. Загрузка и предобработка данных
-# Предполагается, что res.csv содержит столбцы:
-# Temperature,Wind_Speed,Precipitation,Category,Head_Clothing,Arms_Clothing,Neck_Clothing,Body_Clothing,Legs_Clothing,Shoes_Clothing
+# Предполагается, что res.csv теперь содержит столбцы:
+# Temperature,Wind_Speed,Precipitation,Category,Sex,Age,
+# Head_Clothing,Arms_Clothing,Neck_Clothing,Body_Clothing,Legs_Clothing,Shoes_Clothing
 
-# Загрузка данных
-data = pd.read_csv('res.csv')
+data = pd.read_csv('res.csv', encoding='utf-8')
 
 # Заполнение отсутствующих значений пустыми строками
 data.fillna('', inplace=True)
 
-# Определение входных признаков и целевых переменных
-X = data[['Temperature', 'Wind_Speed', 'Precipitation']].values
+# Кодируем пол: 'male' → 0, 'female' → 1
+data['Sex'] = data['Sex'].map({'male': 0, 'female': 1})
+
+# Определение входных признаков: добавляем Sex и Age
+X = data[['Temperature', 'Wind_Speed', 'Precipitation', 'Sex', 'Age']].values
 
 # Целевые переменные: одежда по частям тела
 y_head = data['Head_Clothing'].values
@@ -38,7 +41,6 @@ le_body = LabelEncoder()
 le_legs = LabelEncoder()
 le_shoes = LabelEncoder()
 
-# Проверка наличия хотя бы одного уникального значения в каждой категории
 def check_unique(values, le, category_name):
     if len(set(values)) < 2:
         raise ValueError(f"Категория '{category_name}' должна содержать как минимум два уникальных значения для кодирования.")
@@ -51,7 +53,6 @@ y_body_enc = check_unique(y_body, le_body, 'Body_Clothing')
 y_legs_enc = check_unique(y_legs, le_legs, 'Legs_Clothing')
 y_shoes_enc = check_unique(y_shoes, le_shoes, 'Shoes_Clothing')
 
-# Преобразование в категориальные переменные
 num_classes_head = len(le_head.classes_)
 num_classes_arms = len(le_arms.classes_)
 num_classes_neck = len(le_neck.classes_)
@@ -79,15 +80,14 @@ y_legs_train, y_legs_test, y_shoes_train, y_shoes_test = train_test_split(
 )
 
 # 2. Построение модели
+# Теперь входной слой имеет shape=(5,) вместо (3,)
 input_layer = Input(shape=(X_train.shape[1],), name='Input')
 
-# Общие скрытые слои
 dense1 = Dense(128, activation='relu', name='Dense_1')(input_layer)
 drop1 = Dropout(0.5, name='Dropout_1')(dense1)
 dense2 = Dense(64, activation='relu', name='Dense_2')(drop1)
 drop2 = Dropout(0.5, name='Dropout_2')(dense2)
 
-# Выходы для каждой категории одежды
 output_head = Dense(num_classes_head, activation='softmax', name='head')(drop2)
 output_arms = Dense(num_classes_arms, activation='softmax', name='arms')(drop2)
 output_neck = Dense(num_classes_neck, activation='softmax', name='neck')(drop2)
@@ -95,12 +95,10 @@ output_body = Dense(num_classes_body, activation='softmax', name='body')(drop2)
 output_legs = Dense(num_classes_legs, activation='softmax', name='legs')(drop2)
 output_shoes = Dense(num_classes_shoes, activation='softmax', name='shoes')(drop2)
 
-# Создание модели
 model = Model(inputs=input_layer, outputs=[
     output_head, output_arms, output_neck, output_body, output_legs, output_shoes
 ])
 
-# 3. Компиляция модели с метриками для каждого выхода
 model.compile(
     optimizer=Adam(learning_rate=0.001),
     loss='sparse_categorical_crossentropy',
@@ -161,7 +159,6 @@ print(f"Shoes Accuracy: {results[6]:.4f}")
 # 6. Визуализация обучения
 plt.figure(figsize=(18, 12))
 
-# Потери
 plt.subplot(3, 2, 1)
 plt.plot(history.history['head_loss'], label='Train Head Loss')
 plt.plot(history.history['val_head_loss'], label='Val Head Loss')
@@ -215,7 +212,6 @@ plt.show()
 
 plt.figure(figsize=(18, 12))
 
-# Точности
 plt.subplot(3, 2, 1)
 plt.plot(history.history['head_accuracy'], label='Train Head Accuracy')
 plt.plot(history.history['val_head_accuracy'], label='Val Head Accuracy')
@@ -282,65 +278,3 @@ with open('label_encoders.pkl', 'wb') as f:
         'legs': le_legs,
         'shoes': le_shoes
     }, f)
-
-# 8. Функция для предсказания рекомендаций
-def predict_clothing_recommendation(temperature, wind_speed, precipitation):
-    # Загрузка скейлера и энкодеров
-    with open('scaler.pkl', 'rb') as f:
-        scaler = pickle.load(f)
-    with open('label_encoders.pkl', 'rb') as f:
-        le_dict = pickle.load(f)
-    
-    # Создание массива входных данных
-    input_data = np.array([[temperature, wind_speed, precipitation]])
-    input_data_scaled = scaler.transform(input_data)
-    
-    # Предсказание
-    predictions = model.predict(input_data_scaled)
-    
-    # Распаковка предсказаний
-    head_pred = np.argmax(predictions[0], axis=1)
-    arms_pred = np.argmax(predictions[1], axis=1)
-    neck_pred = np.argmax(predictions[2], axis=1)
-    body_pred = np.argmax(predictions[3], axis=1)
-    legs_pred = np.argmax(predictions[4], axis=1)
-    shoes_pred = np.argmax(predictions[5], axis=1)
-    
-    # Декодирование предсказаний
-    head_recommend = le_dict['head'].inverse_transform(head_pred)
-    arms_recommend = le_dict['arms'].inverse_transform(arms_pred)
-    neck_recommend = le_dict['neck'].inverse_transform(neck_pred)
-    body_recommend = le_dict['body'].inverse_transform(body_pred)
-    legs_recommend = le_dict['legs'].inverse_transform(legs_pred)
-    shoes_recommend = le_dict['shoes'].inverse_transform(shoes_pred)
-    
-    # Формирование полного комплекта одежды
-    complete_outfit = [
-        head_recommend[0],
-        arms_recommend[0],
-        neck_recommend[0],
-        body_recommend[0],
-        legs_recommend[0],
-        shoes_recommend[0]
-    ]
-    
-    # Удаление пустых рекомендаций
-    complete_outfit = [item for item in complete_outfit if item]
-    
-    return complete_outfit
-
-# 9. Пример использования модели
-new_weather = {
-    'Temperature': 18.4,
-    'Wind_Speed': 16.1,
-    'Precipitation': 1
-}
-
-recommendation = predict_clothing_recommendation(
-    new_weather['Temperature'],
-    new_weather['Wind_Speed'],
-    new_weather['Precipitation']
-)
-
-print("Рекомендованный комплект одежды:")
-print(", ".join(recommendation))
