@@ -1,75 +1,91 @@
 import numpy as np
 import pickle
 from tensorflow.keras.models import load_model
+import random
+import pandas as pd
 
-# Загрузка модели
-model = load_model('clothing_recommendation_model.h5')
-
-# Загрузка скейлера
-with open('scaler.pkl', 'rb') as f:
-    scaler = pickle.load(f)
-
-# Загрузка энкодеров
-with open('label_encoders.pkl', 'rb') as f:
-    le_dict = pickle.load(f)
+def read_input_data(file_path):
+    """
+    Читает данные из CSV файла и возвращает их в виде списка словарей.
+    
+    Args:
+        file_path (str): Путь к файлу с данными.
+    
+    Returns:
+        list: Список словарей с данными.
+    """
+    data = pd.read_csv(file_path)
+    input_data_list = data.to_dict(orient='records')  # Преобразуем строки в словари
+    return input_data_list
 
 def predict_clothing_recommendation_from_data(inputData):
     """
-    Извлекает данные о погоде из inputData (dict) и предсказывает полный комплект одежды.
+    Извлекает данные из inputData, предобрабатывает их и предсказывает комплект одежды.
     
-    Ожидается следующая структура:
-    {
-      "settings": { "age": ..., "sex": ... },
-      "coord": { "lon": ..., "lat": ... },
-      "weather": [...],
-      "main": { "temp": ..., ... },
-      "wind": { "speed": ... },
-      "clouds": { "all": ... },
-      ... 
-    }
+    Args:
+        inputData (dict): Содержит Temperature, Wind_Speed, Precipitation, Sex, Age.
     
-    Параметры для модели:
-    - Температура: main["temp"]
-    - Скорость ветра: wind["speed"]
-    - Осадки: rain["1h"], если есть, иначе 0
+    Returns:
+        list: Рекомендованный комплект одежды.
     """
-    # Извлечение температуры
-    temperature = inputData['main']['temp']
-
-    # Извлечение скорости ветра
-    wind_speed = inputData['wind']['speed']
-
-    # Извлечение осадков
-    precipitation = 0.0
-    if 'rain' in inputData and '1h' in inputData['rain']:
-        precipitation = inputData['rain']['1h']
-
-    # Создание входного массива
-    input_data = np.array([[temperature, wind_speed, precipitation]])
-
+    # Извлечение признаков из inputData
+    temperature = inputData.get('Temperature')
+    wind_speed = inputData.get('Wind_Speed')
+    precipitation = inputData.get('Precipitation')
+    sex = inputData.get('Sex')
+    age = inputData.get('Age')
+    
+    # Проверка наличия всех необходимых признаков
+    if temperature is None or wind_speed is None or precipitation is None or sex is None or age is None:
+        raise ValueError("Input data must contain Temperature, Wind_Speed, Precipitation, Sex, and Age.")
+    
+    # Преобразование пола в числовой формат: 'male' -> 0, 'female' -> 1
+    sex_mapping = {'male': 0, 'female': 1}
+    sex_numeric = sex_mapping.get(sex.lower())
+    if sex_numeric is None:
+        raise ValueError("Sex must be either 'male' or 'female'.")
+    
+    # Создание массива входных данных в нужном формате
+    # Порядок признаков: [Temperature, Wind_Speed, Precipitation, Sex, Age]
+    input_array = np.array([[temperature, wind_speed, precipitation, sex_numeric, age]])
+    
+    # Загрузка скейлера
+    with open('scaler.pkl', 'rb') as f:
+        scaler = pickle.load(f)
+    
     # Масштабирование входных данных
-    input_data_scaled = scaler.transform(input_data)
-
+    try:
+        input_scaled = scaler.transform(input_array)
+    except ValueError as e:
+        raise ValueError(f"Ошибка при масштабировании данных: {e}")
+    
+    # Загрузка модели
+    model = load_model('clothing_recommendation_model.h5')
+    
+    # Загрузка энкодеров
+    with open('label_encoders.pkl', 'rb') as f:
+        le_dict = pickle.load(f)
+    
     # Предсказание модели
-    predictions = model.predict(input_data_scaled)
-
-    # Получаем индексы наиболее вероятных классов для каждой категории одежды
+    predictions = model.predict(input_scaled)
+    
+    # Извлечение предсказаний для каждой категории одежды
     head_pred = np.argmax(predictions[0], axis=1)
     arms_pred = np.argmax(predictions[1], axis=1)
     neck_pred = np.argmax(predictions[2], axis=1)
     body_pred = np.argmax(predictions[3], axis=1)
     legs_pred = np.argmax(predictions[4], axis=1)
     shoes_pred = np.argmax(predictions[5], axis=1)
-
-    # Декодирование индексов в названия одежды
+    
+    # Декодирование предсказаний обратно в наименования одежды
     head_recommend = le_dict['head'].inverse_transform(head_pred)
     arms_recommend = le_dict['arms'].inverse_transform(arms_pred)
     neck_recommend = le_dict['neck'].inverse_transform(neck_pred)
     body_recommend = le_dict['body'].inverse_transform(body_pred)
     legs_recommend = le_dict['legs'].inverse_transform(legs_pred)
     shoes_recommend = le_dict['shoes'].inverse_transform(shoes_pred)
-
-    # Формируем итоговый комплект одежды
+    
+    # Формирование итогового комплекта одежды
     complete_outfit = [
         head_recommend[0],
         arms_recommend[0],
@@ -78,32 +94,24 @@ def predict_clothing_recommendation_from_data(inputData):
         legs_recommend[0],
         shoes_recommend[0]
     ]
-
-    # Удаляем пустые строки, если они есть
+    
+    # Удаление пустых рекомендаций, если они есть
     complete_outfit = [item for item in complete_outfit if item and item.strip()]
-
+    
     return complete_outfit
 
-# Пример использования
 if __name__ == "__main__":
-    # Предполагается, что inputData уже получен из другого файла или источника
-    inputData = {
-        "settings": {"age":18,"sex":"male"},
-        "coord": {"lon":21.1669,"lat":42.6727},
-        "weather":[{"id":803,"main":"Clouds","description":"broken clouds","icon":"04n"}],
-        "base":"stations",
-        "main":{"temp":2.77,"feels_like":1.35,"temp_min":2.01,"temp_max":3.43,"pressure":1014,"humidity":84,"sea_level":1014,"grnd_level":937},
-        "visibility":10000,
-        "wind":{"speed":1.54,"deg":160},
-        "clouds":{"all":75},
-        "dt":1733594662,
-        "sys":{"type":2,"id":2001690,"country":"XK","sunrise":1733550737,"sunset":1733583712},
-        "timezone":3600,
-        "id":786714,
-        "name":"Pristina",
-        "cod":200
-    }
-
-    recommendation = predict_clothing_recommendation_from_data(inputData)
-    print("Рекомендованный комплект одежды:")
-    print(", ".join(recommendation))
+    # Чтение данных из файла
+    file_path = 'input_data.csv'  # Путь к файлу с данными
+    input_data_list = read_input_data(file_path)
+    
+    # Предсказания для каждого набора данных
+    for i, input_data in enumerate(input_data_list):
+        print(f"\nТест {i+1}: {input_data}")
+        try:
+            # Получение рекомендации по одежде
+            recommendation = predict_clothing_recommendation_from_data(input_data)
+            print("Рекомендованный комплект одежды:")
+            print(", ".join(recommendation))
+        except Exception as e:
+            print(f"Произошла ошибка при предсказании: {e}")
