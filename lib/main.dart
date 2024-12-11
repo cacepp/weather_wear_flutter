@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_switch/flutter_switch.dart';
 import 'package:weather_wear_flutter/pages/city_picker_page.dart';
 import 'package:weather_wear_flutter/pages/date_picker_page.dart';
+import 'package:intl/intl.dart';
 
 import 'services/weather_service.dart';
 
@@ -156,61 +157,100 @@ class WeatherPage extends StatefulWidget {
 }
 
 class _WeatherPageState extends State<WeatherPage> {
+  late AppState appState;
+
   @override
   Widget build(BuildContext context) {
-    //TODO: сделать слайдер
-    var appState = context.watch<AppState>();
+    appState = context.watch<AppState>();
+
+    // Предполагаем, что прогноз на 3 дня уже есть
+    int forecastLength = 3; // У нас всегда 3 дня
+
+    // Функция для получения даты, начиная с сегодняшней
+    String _getDateForDay(int offset) {
+      final DateTime currentDate = DateTime.now().add(Duration(days: offset));
+      return DateFormat('yyyy-MM-dd').format(currentDate);
+    }
 
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Поле ввода города
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Enter City',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                appState.updateCity(value);
-              },
-            ),
-            SizedBox(height: 16),
-            // Кнопка для получения текущей погоды
-            ElevatedButton(
-              onPressed: () {
-                if (appState.city.isNotEmpty) {
-                  appState.fetchCurrentWeather();
-                  appState.fetchWeatherForecast();
-                }
-              },
-              child: Text('Get Weather'),
-            ),
-            SizedBox(height: 16),
-            // Отображение текущей погоды
-            if (appState.currentWeather.isNotEmpty) ...[
-              Text(
-                'Current Weather:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Text(appState.currentWeather),
-            ],
-            SizedBox(height: 16),
-            // Отображение прогноза на 5 дней
-            if (appState.weatherForecast.isNotEmpty) ...[
-              Text(
-                '5-Day Forecast:',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              for (var forecast in appState.weatherForecast)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: Text(forecast),
+        child: SingleChildScrollView(  // Оборачиваем весь контент в ScrollView
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Поле ввода города
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Enter City',
+                  border: OutlineInputBorder(),
                 ),
+                onChanged: (value) {
+                  appState.updateCity(value);
+                },
+              ),
+              SizedBox(height: 16),
+              // Кнопка для получения текущей погоды
+              ElevatedButton(
+                onPressed: () {
+                  if (appState.city.isNotEmpty) {
+                    appState.fetchCurrentWeather();
+                    appState.fetchWeatherForecast();
+                  }
+                },
+                child: Text('Get Weather'),
+              ),
+              SizedBox(height: 16),
+              // Отображение текущей погоды
+              if (appState.currentWeather.isNotEmpty) ...[
+                Text(
+                  'Current Weather:',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(appState.currentWeather),
+              ],
+              SizedBox(height: 16),
+              // Отображение прогноза на 3 дня
+              if (appState.weatherForecast.isNotEmpty) ...[
+                Text(
+                  '3-Day Forecast:',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 16),
+                // Список блоков для каждого дня
+                for (int i = 0; i < forecastLength; i++) ...[
+                  Card(
+                    margin: EdgeInsets.symmetric(vertical: 8),
+                    elevation: 6,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          // Дата для дня (например, "2024-12-12")
+                          Text(
+                            _getDateForDay(i),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          // Прогноз для этого дня
+                          Text(
+                            appState.weatherForecast[i], // Прогноз для дня
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

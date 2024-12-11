@@ -41,7 +41,7 @@ class WeatherService {
       }
 
       final response = await http.get(Uri.parse(
-          '$forecastUrl?q=$city&units=metric&appid=$apiKey'));
+            '$forecastUrl?q=$city&units=metric&appid=$apiKey'));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
