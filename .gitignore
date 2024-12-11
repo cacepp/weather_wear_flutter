@@ -44,3 +44,6 @@ app.*.map.json
 
 # Passwords
 env/.env
+
+# CSV файлы
+res.csv
