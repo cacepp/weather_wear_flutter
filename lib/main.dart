@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:weather_wear_flutter/pages/city_picker_page.dart';
 import 'package:weather_wear_flutter/pages/date_picker_page.dart';
 import 'package:intl/intl.dart';
@@ -32,38 +33,37 @@ class App extends StatelessWidget {
 }
 
 class AppState extends ChangeNotifier {
-  String city = '';
-  WeatherData? weatherData; // This will store the weather data
+  String city = '';  // City name
+  WeatherData? weatherData;  // Current weather data
+  List<WeatherForecast> weatherForecast = [];  // 5-day weather forecast
+
   final WeatherService weatherService = WeatherService();
 
-  // Обновляем город
+  // Update city
   void updateCity(String newCity) {
     city = newCity;
     notifyListeners();
   }
 
-  // Получаем текущую погоду
+  // Fetch current weather
   Future<void> fetchCurrentWeather() async {
     try {
       final weather = await weatherService.fetchCurrentWeather(city);
-
-      // Сохраняем полученные данные в weatherData
       weatherData = weather;
       notifyListeners();
     } catch (e) {
-      print('Error fetching weather data: $e');
+      print('Error fetching current weather: $e');
     }
   }
 
-  // Получаем прогноз на 5 дней
+  // Fetch 5-day weather forecast
   Future<void> fetchWeatherForecast() async {
     try {
       final forecast = await weatherService.fetchWeatherForecast(city);
-      var weatherForecast = forecast.cast<String>();
+      weatherForecast = forecast;
       notifyListeners();
     } catch (e) {
-      var weatherForecast = ['Error: $e'];
-      notifyListeners();
+      print('Error fetching weather forecast: $e');
     }
   }
 }
@@ -151,102 +151,157 @@ class WeatherPage extends StatefulWidget {
 }
 
 class _WeatherPageState extends State<WeatherPage> {
-  TextEditingController cityController = TextEditingController();  // Controller for the city input
+  TextEditingController cityController = TextEditingController(); // Controller for city input
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Поле ввода города
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: TextField(
-            controller: cityController,
-            decoration: InputDecoration(
-              labelText: 'Enter city',
-              border: OutlineInputBorder(),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // City input field
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              controller: cityController,
+              decoration: InputDecoration(
+                labelText: 'Enter city',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (value) {
+                appState.updateCity(value);
+                appState.fetchCurrentWeather();
+                appState.fetchWeatherForecast(); // Fetch forecast for the city
+              },
             ),
-            onSubmitted: (value) {
-              // Обновляем город в состоянии
-              appState.updateCity(value);
-              // Загружаем погоду для нового города
-              appState.fetchCurrentWeather();
-            },
           ),
-        ),
-        SizedBox(height: 20),
+          SizedBox(height: 20),
 
-        // Заголовок с городом
-        Text(
-          'Current Weather for ${appState.city}',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-        SizedBox(height: 20),
+          // City and current weather display
+          Text(
+            'Current Weather for ${appState.city}',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          SizedBox(height: 20),
 
-        // Показать прогресс-бар, если данные еще не загружены
-        appState.weatherData == null
-            ? CircularProgressIndicator()
-            : WeatherDetails(weather: appState.weatherData!),  // Отображаем детали погоды
+          appState.weatherData == null
+              ? CircularProgressIndicator()
+              : WeatherDetails(weather: appState.weatherData!), // Show current weather details
 
-        SizedBox(height: 20),
+          SizedBox(height: 20),
 
-        // Кнопка для обновления погоды
-        ElevatedButton(
-          onPressed: () async {
-            // Загружаем погоду для текущего города
-            await appState.fetchCurrentWeather();
-          },
-          child: Text('Refresh Weather'),
-        ),
-      ],
+          // Vertical slider for weather forecast
+          appState.weatherForecast.isEmpty
+              ? CircularProgressIndicator()
+              : CarouselSlider.builder(
+            itemCount: appState.weatherForecast.length,
+            itemBuilder: (context, index, realIndex) {
+              var forecast = appState.weatherForecast[index];
+              return Container(
+                padding: EdgeInsets.all(10),
+                margin: EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200], // Background color
+                  borderRadius: BorderRadius.circular(10), // Rounded corners
+                ),
+                child: Column(
+                  children: [
+                    Text(forecast.date, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 8),
+                    Text('${forecast.temperature}°C', style: TextStyle(fontSize: 20)),
+                    Text(forecast.description, style: TextStyle(fontSize: 14)),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Wind: ${forecast.windSpeed} m/s', style: TextStyle(fontSize: 14)),
+                        SizedBox(width: 8),
+                        Text(_getWindDirection(forecast.windDegree), style: TextStyle(fontSize: 14)), // Text for wind direction
+                      ],
+                    ),
+                    Text('Humidity: ${forecast.humidity}%', style: TextStyle(fontSize: 14)),
+                  ],
+                ),
+              );
+            },
+            options: CarouselOptions(
+              height: 400,
+              enlargeCenterPage: true,
+              scrollDirection: Axis.vertical, // Vertical scroll
+              enableInfiniteScroll: false,
+            ),
+          ),
+
+          SizedBox(height: 20),
+
+          // Refresh button for weather data
+          ElevatedButton(
+            onPressed: () async {
+              await appState.fetchCurrentWeather();
+              await appState.fetchWeatherForecast(); // Refresh weather data
+            },
+            child: Text('Refresh Weather'),
+          ),
+        ],
+      ),
     );
+  }
+
+  // Function to get wind direction as text
+  String _getWindDirection(int windDegree) {
+    if (windDegree >= 0 && windDegree < 22.5) {
+      return 'N';  // Север
+    } else if (windDegree >= 22.5 && windDegree < 45) {
+      return 'NNE'; // Северо-северо-восток
+    } else if (windDegree >= 45 && windDegree < 67.5) {
+      return 'NE';  // Северо-восток
+    } else if (windDegree >= 67.5 && windDegree < 90) {
+      return 'ENE'; // Восточно-северо-восток
+    } else if (windDegree >= 90 && windDegree < 112.5) {
+      return 'E';   // Восток
+    } else if (windDegree >= 112.5 && windDegree < 135) {
+      return 'ESE'; // Восточно-юго-восток
+    } else if (windDegree >= 135 && windDegree < 157.5) {
+      return 'SE';  // Юго-восток
+    } else if (windDegree >= 157.5 && windDegree < 180) {
+      return 'SSE'; // Южно-юго-восток
+    } else if (windDegree >= 180 && windDegree < 202.5) {
+      return 'S';   // Южный
+    } else if (windDegree >= 202.5 && windDegree < 225) {
+      return 'SSW'; // Южно-юго-запад
+    } else if (windDegree >= 225 && windDegree < 247.5) {
+      return 'SW';  // Южно-запад
+    } else if (windDegree >= 247.5 && windDegree < 270) {
+      return 'WSW'; // Западно-юго-запад
+    } else if (windDegree >= 270 && windDegree < 292.5) {
+      return 'W';   // Запад
+    } else if (windDegree >= 292.5 && windDegree < 315) {
+      return 'WNW'; // Западно-северо-запад
+    } else if (windDegree >= 315 && windDegree < 337.5) {
+      return 'NW';  // Северо-запад
+    } else {
+      return 'NNW'; // Северо-северо-запад (для случая, когда градус 337.5)
+    }
   }
 }
 
 class WeatherDetails extends StatelessWidget {
-  final WeatherData weather; // Now we directly use WeatherData
+  final WeatherData weather;
 
-  // Конструктор для получения данных погоды
   WeatherDetails({required this.weather});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Температура
-        Text(
-          'Temperature: ${weather.temperature}°C',
-          style: TextStyle(fontSize: 18),
-        ),
-        // Скорость ветра
-        Text(
-          'Wind Speed: ${weather.windSpeed} m/s',
-          style: TextStyle(fontSize: 18),
-        ),
-        // Направление ветра
-        Text(
-          'Wind Direction: ${weather.windDegree}°',
-          style: TextStyle(fontSize: 18),
-        ),
-        // Влажность
-        Text(
-          'Humidity: ${weather.humidity}%',
-          style: TextStyle(fontSize: 18),
-        ),
-        // Описание погоды
-        Text(
-          'Description: ${weather.description}',
-          style: TextStyle(fontSize: 18),
-        ),
-        // Осадки
-        Text(
-          'Precipitation: ${weather.precipitation}',
-          style: TextStyle(fontSize: 18),
-        ),
+        Text('Temperature: ${weather.temperature}°C', style: TextStyle(fontSize: 18)),
+        Text('Description: ${weather.description}', style: TextStyle(fontSize: 16)),
+        Text('Wind Speed: ${weather.windSpeed} m/s', style: TextStyle(fontSize: 16)),
+        Text('Humidity: ${weather.humidity}%', style: TextStyle(fontSize: 16)),
+        Text('Precipitation: ${weather.precipitation}', style: TextStyle(fontSize: 16)),
       ],
     );
   }
