@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_switch/flutter_switch.dart';
 import 'package:weather_wear_flutter/pages/city_picker_page.dart';
 import 'package:weather_wear_flutter/pages/date_picker_page.dart';
 import 'package:intl/intl.dart';
@@ -35,8 +33,7 @@ class App extends StatelessWidget {
 
 class AppState extends ChangeNotifier {
   String city = '';
-  String currentWeather = '';
-  List<String> weatherForecast = [];
+  WeatherData? weatherData; // This will store the weather data
   final WeatherService weatherService = WeatherService();
 
   // Обновляем город
@@ -49,11 +46,12 @@ class AppState extends ChangeNotifier {
   Future<void> fetchCurrentWeather() async {
     try {
       final weather = await weatherService.fetchCurrentWeather(city);
-      currentWeather = weather;
+
+      // Сохраняем полученные данные в weatherData
+      weatherData = weather;
       notifyListeners();
     } catch (e) {
-      currentWeather = 'Error: $e';
-      notifyListeners();
+      print('Error fetching weather data: $e');
     }
   }
 
@@ -61,15 +59,13 @@ class AppState extends ChangeNotifier {
   Future<void> fetchWeatherForecast() async {
     try {
       final forecast = await weatherService.fetchWeatherForecast(city);
-      weatherForecast = forecast;
+      var weatherForecast = forecast.cast<String>();
       notifyListeners();
     } catch (e) {
-      weatherForecast = ['Error: $e'];
+      var weatherForecast = ['Error: $e'];
       notifyListeners();
     }
   }
-
-  //TODO: вынести состояние страницы настроек в глобальное (т.е. сюда)
 }
 
 class HomePage extends StatefulWidget {
@@ -88,24 +84,24 @@ class _HomePageState extends State<HomePage> {
       case 0:
         page = HistoryPage();
         _selectedPageName = 'История';
+        break;
       case 1:
         page = WeatherPage();
         _selectedPageName = 'Погода';
+        break;
       case 2:
         page = SettingsPage();
         _selectedPageName = 'Настройки';
+        break;
       default:
         throw UnimplementedError('no widget for $_selectedIndex');
     }
 
     return Scaffold(
       appBar: AppBar(
-
         title: Text(
           _selectedPageName,
-          style: TextStyle(
-            fontSize: 40.0,
-          ),
+          style: TextStyle(fontSize: 40.0),
         ),
         foregroundColor: Color.fromRGBO(42, 58, 74, 1),
       ),
@@ -113,8 +109,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           Expanded(
             child: SafeArea(
-              child:
-              Container(
+              child: Container(
                 color: Theme.of(context).colorScheme.primaryContainer,
                 child: page,
               ),
@@ -129,7 +124,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.cloud),
-                  label: 'Погода'
+                  label: 'Погода',
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.settings),
@@ -142,11 +137,10 @@ class _HomePageState extends State<HomePage> {
                   _selectedIndex = value;
                 });
               },
-
             ),
           ),
         ],
-      )
+      ),
     );
   }
 }
@@ -157,102 +151,103 @@ class WeatherPage extends StatefulWidget {
 }
 
 class _WeatherPageState extends State<WeatherPage> {
-  late AppState appState;
+  TextEditingController cityController = TextEditingController();  // Controller for the city input
 
   @override
   Widget build(BuildContext context) {
-    appState = context.watch<AppState>();
+    final appState = Provider.of<AppState>(context);
 
-    // Предполагаем, что прогноз на 3 дня уже есть
-    int forecastLength = 3; // У нас всегда 3 дня
-
-    // Функция для получения даты, начиная с сегодняшней
-    String _getDateForDay(int offset) {
-      final DateTime currentDate = DateTime.now().add(Duration(days: offset));
-      return DateFormat('yyyy-MM-dd').format(currentDate);
-    }
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: SingleChildScrollView(  // Оборачиваем весь контент в ScrollView
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Поле ввода города
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Enter City',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) {
-                  appState.updateCity(value);
-                },
-              ),
-              SizedBox(height: 16),
-              // Кнопка для получения текущей погоды
-              ElevatedButton(
-                onPressed: () {
-                  if (appState.city.isNotEmpty) {
-                    appState.fetchCurrentWeather();
-                    appState.fetchWeatherForecast();
-                  }
-                },
-                child: Text('Get Weather'),
-              ),
-              SizedBox(height: 16),
-              // Отображение текущей погоды
-              if (appState.currentWeather.isNotEmpty) ...[
-                Text(
-                  'Current Weather:',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                Text(appState.currentWeather),
-              ],
-              SizedBox(height: 16),
-              // Отображение прогноза на 3 дня
-              if (appState.weatherForecast.isNotEmpty) ...[
-                Text(
-                  '3-Day Forecast:',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 16),
-                // Список блоков для каждого дня
-                for (int i = 0; i < forecastLength; i++) ...[
-                  Card(
-                    margin: EdgeInsets.symmetric(vertical: 8),
-                    elevation: 6,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          // Дата для дня (например, "2024-12-12")
-                          Text(
-                            _getDateForDay(i),
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          // Прогноз для этого дня
-                          Text(
-                            appState.weatherForecast[i], // Прогноз для дня
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ],
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Поле ввода города
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: TextField(
+            controller: cityController,
+            decoration: InputDecoration(
+              labelText: 'Enter city',
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: (value) {
+              // Обновляем город в состоянии
+              appState.updateCity(value);
+              // Загружаем погоду для нового города
+              appState.fetchCurrentWeather();
+            },
           ),
         ),
-      ),
+        SizedBox(height: 20),
+
+        // Заголовок с городом
+        Text(
+          'Current Weather for ${appState.city}',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        SizedBox(height: 20),
+
+        // Показать прогресс-бар, если данные еще не загружены
+        appState.weatherData == null
+            ? CircularProgressIndicator()
+            : WeatherDetails(weather: appState.weatherData!),  // Отображаем детали погоды
+
+        SizedBox(height: 20),
+
+        // Кнопка для обновления погоды
+        ElevatedButton(
+          onPressed: () async {
+            // Загружаем погоду для текущего города
+            await appState.fetchCurrentWeather();
+          },
+          child: Text('Refresh Weather'),
+        ),
+      ],
+    );
+  }
+}
+
+class WeatherDetails extends StatelessWidget {
+  final WeatherData weather; // Now we directly use WeatherData
+
+  // Конструктор для получения данных погоды
+  WeatherDetails({required this.weather});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Температура
+        Text(
+          'Temperature: ${weather.temperature}°C',
+          style: TextStyle(fontSize: 18),
+        ),
+        // Скорость ветра
+        Text(
+          'Wind Speed: ${weather.windSpeed} m/s',
+          style: TextStyle(fontSize: 18),
+        ),
+        // Направление ветра
+        Text(
+          'Wind Direction: ${weather.windDegree}°',
+          style: TextStyle(fontSize: 18),
+        ),
+        // Влажность
+        Text(
+          'Humidity: ${weather.humidity}%',
+          style: TextStyle(fontSize: 18),
+        ),
+        // Описание погоды
+        Text(
+          'Description: ${weather.description}',
+          style: TextStyle(fontSize: 18),
+        ),
+        // Осадки
+        Text(
+          'Precipitation: ${weather.precipitation}',
+          style: TextStyle(fontSize: 18),
+        ),
+      ],
     );
   }
 }
@@ -260,218 +255,17 @@ class _WeatherPageState extends State<WeatherPage> {
 class HistoryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    //TODO: сделать страницу с историей запросов
-    return Placeholder();
+    return Center(
+      child: Text('History Page'),
+    );
   }
 }
 
-class SettingsPage extends StatefulWidget {
-  @override
-  State<SettingsPage> createState() => _SettingsPageState();
-}
-
-class _SettingsPageState extends State<SettingsPage> {
-  bool _temperatureUnit = false;
-  bool _notifications = false;
-  bool _gender = false;
-  String _birthDate = '';
-  String _city = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _temperatureUnit = prefs.getBool('temperature') ?? true;
-      _notifications = prefs.getBool('notifications') ?? false;
-      _gender = prefs.getBool('gender') ?? true;
-      _birthDate = prefs.getString('birthDate') ??
-          DateTime.now().toIso8601String();
-      _city = prefs.getString('city') ?? 'Не выбран';
-    });
-  }
-
-  Future<void> _saveSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      prefs.setBool('temperature', _temperatureUnit);
-      prefs.setBool('notifications', _notifications);
-      prefs.setBool('gender', _gender);
-      prefs.setString('birthDate', _birthDate);
-      prefs.setString('city', _city);
-    });
-  }
-
+class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Единица измерения\n температуры', style: TextStyle(fontSize: 20)),
-                FlutterSwitch(
-                  value: _temperatureUnit,
-                  width: 104.0,
-                  height: 47.0,
-                  borderRadius: 50.0,
-                  valueFontSize: 25.0,
-                  switchBorder: Border(
-                      top: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                      right: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                      bottom: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                      left: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                  ),
-                  activeText: "°С",
-                  activeTextColor: Color.fromRGBO(255, 255, 255, 1),
-                  activeColor: Color.fromRGBO(0, 114, 188, 1),
-                  inactiveText: "°F",
-                  inactiveTextColor: Color.fromRGBO(0, 114, 188, 1),
-                  inactiveColor: Color.fromRGBO(255, 255, 255, 1),
-                  inactiveToggleColor: Color.fromRGBO(0, 114, 188, 1),
-                  showOnOff: true,
-                  toggleSize: 37.0,
-                  onToggle: (val) {
-                    setState(() {
-                      _temperatureUnit = val;
-                      print(_temperatureUnit);
-                    });
-                    _saveSettings();
-                  },
-                ),
-              ],
-            ),
-            SizedBox(height: 24,),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Город\n$_city', style: TextStyle(fontSize: 20)),
-                ElevatedButton(
-                  onPressed: () async {
-                    String? selectedCity = await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => CityPickerPage()),
-                    );
-                    if (selectedCity != null) {
-                      setState(() {
-                        _city = selectedCity;
-                      });
-                      _saveSettings();
-                    }
-                  },
-                  child: Text('Изменить')
-                )
-              ],
-            ),
-            SizedBox(height: 24,),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Уведомления', style: TextStyle(fontSize: 20)),
-                FlutterSwitch(
-                  value: _notifications,
-                  width: 104.0,
-                  height: 47.0,
-                  borderRadius: 50.0,
-                  valueFontSize: 25.0,
-                  switchBorder: Border(
-                    top: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                    right: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                    bottom: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                    left: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                  ),
-                  activeText: "ON",
-                  activeTextColor: Color.fromRGBO(255, 255, 255, 1),
-                  activeColor: Color.fromRGBO(0, 114, 188, 1),
-                  inactiveText: "OFF",
-                  inactiveTextColor: Color.fromRGBO(0, 114, 188, 1),
-                  inactiveColor: Color.fromRGBO(255, 255, 255, 1),
-                  inactiveToggleColor: Color.fromRGBO(0, 114, 188, 1),
-                  showOnOff: true,
-                  toggleSize: 37.0,
-                  onToggle: (val) {
-                    setState(() {
-                      _notifications = val;
-                      print(_notifications);
-                    });
-                    _saveSettings();
-                  },
-                ),
-              ],
-            ),
-            SizedBox(height: 24,),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Пол', style: TextStyle(fontSize: 20)),
-                FlutterSwitch(
-                  value: _gender,
-                  width: 104.0,
-                  height: 47.0,
-                  borderRadius: 50.0,
-                  valueFontSize: 25.0,
-                  switchBorder: Border(
-                    top: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                    right: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                    bottom: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                    left: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
-                  ),
-                  activeText: "М",
-                  activeTextColor: Color.fromRGBO(255, 255, 255, 1),
-                  activeColor: Color.fromRGBO(0, 114, 188, 1),
-                  inactiveText: "Ж",
-                  inactiveTextColor: Color.fromRGBO(0, 114, 188, 1),
-                  inactiveColor: Color.fromRGBO(255, 255, 255, 1),
-                  inactiveToggleColor: Color.fromRGBO(0, 114, 188, 1),
-                  showOnOff: true,
-                  toggleSize: 37.0,
-                  onToggle: (val) {
-                    setState(() {
-                      _gender = val;
-                      print(_gender);
-                    });
-                    _saveSettings();
-                  },
-                ),
-              ],
-            ),
-            SizedBox(height: 24,),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Дата рождения\n${_birthDate.split('T')[0]}',
-                  style: TextStyle(fontSize: 20)
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    String? selectedDate = await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => DatePickerPage()),
-                    );
-                    if (selectedDate != null) {
-                      setState(() {
-                        _birthDate = selectedDate;
-                      });
-                      _saveSettings();
-                    }
-                  },
-                  child: Text('Изменить')
-                )
-              ],
-            ),
-            SizedBox(height: 24,),
-
-          ],
-        ),
-      ),
+      child: Text('Settings Page'),
     );
   }
 }
