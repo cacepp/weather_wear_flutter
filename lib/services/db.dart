@@ -83,3 +83,36 @@ class Recommendation {
         '[${RecommendationText}] [${UserRating}] ';
   }
 }
+
+Future<void> populateDatabase(Database db) async {
+  final recommendations = [
+    Recommendation(
+      id: 1,
+      Temperature: 25.0,
+      Wet: 60.0,
+      WindDirection: 'North',
+      WindSpeed: 12.0,
+      Precipitation: 'None',
+      FeelingTemperature: 24.0,
+      Date: '2024-12-11',
+      RecommendationText: 'It’s a good day for a walk!',
+      UserRating: 5,
+    ),
+    Recommendation(
+      id: 2,
+      Temperature: 15.0,
+      Wet: 80.0,
+      WindDirection: 'East',
+      WindSpeed: 10.0,
+      Precipitation: 'Rain',
+      FeelingTemperature: 12.0,
+      Date: '2024-12-10',
+      RecommendationText: 'Carry an umbrella!',
+      UserRating: 4,
+    ),
+  ];
+
+  for (var recommendation in recommendations) {
+    await addHistoryRecord(recommendation, db);
+  }
+}

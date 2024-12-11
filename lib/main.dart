@@ -23,23 +23,23 @@ Future<Database> initDatabase() async {
       onCreate: (db, version) {
         return db.execute(
           'CREATE TABLE tbl_history ('
-              'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-              'Temperature REAL, '
-              'Wet REAL, '
-              'WindDirection TEXT, '
-              'WindSpeed REAL, '
-              'Precipitation TEXT, '
-              'FeelingTemperature REAL, '
-              'Date TEXT, '
-              'RecommendationText TEXT, '
-              'UserRating INTEGER'
-              ')',
+            'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+            'Temperature REAL, '
+            'Wet REAL, '
+            'WindDirection TEXT, '
+            'WindSpeed REAL, '
+            'Precipitation TEXT, '
+            'FeelingTemperature REAL, '
+            'Date TEXT, '
+            'RecommendationText TEXT, '
+            'UserRating INTEGER'
+          ')',
         );
       },
     );
   } catch (e) {
     print('Error initializing database: $e');
-    rethrow; // Пробрасываем исключение дальше
+    rethrow;
   }
 }
 
@@ -50,16 +50,24 @@ void main() async {
 
   final db = await initDatabase();
 
-  runApp(App());
+
+  // ПОТОМ УБРАТЬ
+  await populateDatabase(db);
+
+
+
+  runApp(App(database: db,));
 }
 
 class App extends StatelessWidget {
-  const App({super.key});
+  final Database database;
+
+  const App({super.key, required this.database});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => AppState(),
+      create: (context) => AppState(database),
       child: MaterialApp(
         title: 'Weather Wear',
         theme: ThemeData(
@@ -73,10 +81,14 @@ class App extends StatelessWidget {
 }
 
 class AppState extends ChangeNotifier {
+  final Database db;
+
+  AppState(this.db);
   String city = '';
   String currentWeather = '';
   List<String> weatherForecast = [];
   final WeatherService weatherService = WeatherService();
+
 
   // Обновляем город
   void updateCity(String newCity) {
@@ -257,13 +269,57 @@ class _WeatherPageState extends State<WeatherPage> {
   }
 }
 
-class HistoryPage extends StatelessWidget {
+class HistoryPage extends StatefulWidget {
+  @override
+  State<HistoryPage> createState() => _HistoryPageState();
+}
+
+class _HistoryPageState extends State<HistoryPage> {
+  // late Future<List<Recommendation>> recommendations;
+  //
+  // @override
+  // void initState() {
+  //   super.initState();
+  //
+  //   // TODO: Исправить ошибку
+  //   // Initialize recommendations using the AppState provider
+  //   final db = Provider.of<AppState>(context, listen: false).db;
+  //   recommendations = getHistory(db);
+  // }
+
   @override
   Widget build(BuildContext context) {
-    //TODO: сделать страницу с историей запросов
     return Placeholder();
+    // return FutureBuilder<List<Recommendation>>(
+    //   future: recommendations,
+    //   builder: (context, snapshot) {
+    //     if (snapshot.connectionState == ConnectionState.waiting) {
+    //       return Center(child: CircularProgressIndicator());
+    //     } else if (snapshot.hasError) {
+    //       return Center(child: Text('Error: ${snapshot.error}'));
+    //     } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+    //       return Center(child: Text('No history available.'));
+    //     }
+    //
+    //     final data = snapshot.data!;
+    //     return ListView.builder(
+    //       itemCount: data.length,
+    //       itemBuilder: (context, index) {
+    //         final recommendation = data[index];
+    //         return ListTile(
+    //           title: Text(recommendation.RecommendationText),
+    //           subtitle: Text(
+    //             'Date: ${recommendation.Date} | Temp: ${recommendation.Temperature}°C',
+    //           ),
+    //           trailing: Text('Rating: ${recommendation.UserRating}/5'),
+    //         );
+    //       },
+    //     );
+    //   },
+    // );
   }
 }
+
 
 class SettingsPage extends StatefulWidget {
   @override
