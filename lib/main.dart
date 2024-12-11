@@ -217,12 +217,29 @@ class _WeatherPageState extends State<WeatherPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        Icon(Icons.air, size: 24), // Icon for wind
+                        SizedBox(width: 8),
                         Text('Wind: ${forecast.windSpeed} m/s', style: TextStyle(fontSize: 14)),
                         SizedBox(width: 8),
                         Text(_getWindDirection(forecast.windDegree), style: TextStyle(fontSize: 14)), // Text for wind direction
                       ],
                     ),
-                    Text('Humidity: ${forecast.humidity}%', style: TextStyle(fontSize: 14)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.water_drop, size: 24), // Icon for humidity
+                        SizedBox(width: 8),
+                        Text('Humidity: ${forecast.humidity}%', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.center,
+                    //   children: [
+                    //     Icon(Icons.cloud, size: 24), // Icon for precipitation
+                    //     SizedBox(width: 8),
+                    //     Text('Precipitation: ${forecast.precipitation}', style: TextStyle(fontSize: 14)),
+                    //   ],
+                    // ),
                   ],
                 ),
               );
@@ -271,7 +288,7 @@ class _WeatherPageState extends State<WeatherPage> {
     } else if (windDegree >= 180 && windDegree < 202.5) {
       return 'S';   // Южный
     } else if (windDegree >= 202.5 && windDegree < 225) {
-      return 'SSW'; // Южно-юго-запад
+      return 'SSW'; // Южно-северо-запад
     } else if (windDegree >= 225 && windDegree < 247.5) {
       return 'SW';  // Южно-запад
     } else if (windDegree >= 247.5 && windDegree < 270) {
@@ -297,11 +314,41 @@ class WeatherDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text('Temperature: ${weather.temperature}°C', style: TextStyle(fontSize: 18)),
-        Text('Description: ${weather.description}', style: TextStyle(fontSize: 16)),
-        Text('Wind Speed: ${weather.windSpeed} m/s', style: TextStyle(fontSize: 16)),
-        Text('Humidity: ${weather.humidity}%', style: TextStyle(fontSize: 16)),
-        Text('Precipitation: ${weather.precipitation}', style: TextStyle(fontSize: 16)),
+        Row(
+          children: [
+            Icon(Icons.thermostat, size: 24),  // Icon for temperature
+            SizedBox(width: 8),
+            Text('Temperature: ${weather.temperature}°C', style: TextStyle(fontSize: 18)),
+          ],
+        ),
+        Row(
+          children: [
+            Icon(Icons.cloud, size: 24),  // Icon for weather description
+            SizedBox(width: 8),
+            Text('Description: ${weather.description}', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        Row(
+          children: [
+            Icon(Icons.air, size: 24),  // Icon for wind speed
+            SizedBox(width: 8),
+            Text('Wind Speed: ${weather.windSpeed} m/s', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        Row(
+          children: [
+            Icon(Icons.water_drop, size: 24),  // Icon for humidity
+            SizedBox(width: 8),
+            Text('Humidity: ${weather.humidity}%', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        Row(
+          children: [
+            Icon(Icons.cloud, size: 24),  // Icon for precipitation
+            SizedBox(width: 8),
+            Text('Precipitation: ${weather.precipitation}', style: TextStyle(fontSize: 16)),
+          ],
+        ),
       ],
     );
   }
