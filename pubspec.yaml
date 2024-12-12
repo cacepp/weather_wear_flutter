@@ -9,6 +9,8 @@ environment:
   sdk: ^3.1.1
 
 dependencies:
+  carousel_slider: ^5.0.0
+  intl: ^0.20.1
   flutter:
     sdk: flutter
 
