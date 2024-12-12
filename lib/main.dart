@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_switch/flutter_switch.dart';
 import 'package:provider/provider.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:weather_wear_flutter/pages/city_picker_page.dart';
 import 'package:weather_wear_flutter/pages/date_picker_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 import 'services/weather_service.dart';
@@ -154,8 +156,29 @@ class _WeatherPageState extends State<WeatherPage> {
   TextEditingController cityController = TextEditingController(); // Controller for city input
 
   @override
+  void initState() {
+    super.initState();
+    _loadCityFromPreferences();
+  }
+
+  Future<void> _loadCityFromPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? savedCity = prefs.getString('city'); // Получение сохраненного города
+    if (savedCity != null && savedCity.isNotEmpty) {
+      cityController.text = savedCity; // Установка значения в контроллер
+
+      // Программное нажатие кнопки Refresh Weather
+      final appState = Provider.of<AppState>(context, listen: false);
+      appState.updateCity(savedCity);
+      await appState.fetchCurrentWeather();
+      await appState.fetchWeatherForecast();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
+
 
     return SingleChildScrollView(
       child: Column(
@@ -257,8 +280,9 @@ class _WeatherPageState extends State<WeatherPage> {
           // Refresh button for weather data
           ElevatedButton(
             onPressed: () async {
+              final appState = Provider.of<AppState>(context, listen: false);
               await appState.fetchCurrentWeather();
-              await appState.fetchWeatherForecast(); // Refresh weather data
+              await appState.fetchWeatherForecast();
             },
             child: Text('Refresh Weather'),
           ),
@@ -357,17 +381,218 @@ class WeatherDetails extends StatelessWidget {
 class HistoryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Text('History Page'),
-    );
+    //TODO: сделать страницу с историей запросов
+    return Placeholder();
   }
 }
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  bool _temperatureUnit = false;
+  bool _notifications = false;
+  bool _gender = false;
+  String _birthDate = '';
+  String _city = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _temperatureUnit = prefs.getBool('temperature') ?? true;
+      _notifications = prefs.getBool('notifications') ?? false;
+      _gender = prefs.getBool('gender') ?? true;
+      _birthDate = prefs.getString('birthDate') ??
+          DateTime.now().toIso8601String();
+      _city = prefs.getString('city') ?? 'Не выбран';
+    });
+  }
+
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      prefs.setBool('temperature', _temperatureUnit);
+      prefs.setBool('notifications', _notifications);
+      prefs.setBool('gender', _gender);
+      prefs.setString('birthDate', _birthDate);
+      prefs.setString('city', _city);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Text('Settings Page'),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Единица измерения\n температуры', style: TextStyle(fontSize: 20)),
+                FlutterSwitch(
+                  value: _temperatureUnit,
+                  width: 104.0,
+                  height: 47.0,
+                  borderRadius: 50.0,
+                  valueFontSize: 25.0,
+                  switchBorder: Border(
+                    top: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    right: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    bottom: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    left: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                  ),
+                  activeText: "°С",
+                  activeTextColor: Color.fromRGBO(255, 255, 255, 1),
+                  activeColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveText: "°F",
+                  inactiveTextColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveColor: Color.fromRGBO(255, 255, 255, 1),
+                  inactiveToggleColor: Color.fromRGBO(0, 114, 188, 1),
+                  showOnOff: true,
+                  toggleSize: 37.0,
+                  onToggle: (val) {
+                    setState(() {
+                      _temperatureUnit = val;
+                      print(_temperatureUnit);
+                    });
+                    _saveSettings();
+                  },
+                ),
+              ],
+            ),
+            SizedBox(height: 24,),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Город\n$_city', style: TextStyle(fontSize: 20)),
+                ElevatedButton(
+                    onPressed: () async {
+                      String? selectedCity = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => CityPickerPage()),
+                      );
+                      if (selectedCity != null) {
+                        setState(() {
+                          _city = selectedCity;
+                        });
+                        _saveSettings();
+                      }
+                    },
+                    child: Text('Изменить')
+                )
+              ],
+            ),
+            SizedBox(height: 24,),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Уведомления', style: TextStyle(fontSize: 20)),
+                FlutterSwitch(
+                  value: _notifications,
+                  width: 104.0,
+                  height: 47.0,
+                  borderRadius: 50.0,
+                  valueFontSize: 25.0,
+                  switchBorder: Border(
+                    top: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    right: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    bottom: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    left: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                  ),
+                  activeText: "ON",
+                  activeTextColor: Color.fromRGBO(255, 255, 255, 1),
+                  activeColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveText: "OFF",
+                  inactiveTextColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveColor: Color.fromRGBO(255, 255, 255, 1),
+                  inactiveToggleColor: Color.fromRGBO(0, 114, 188, 1),
+                  showOnOff: true,
+                  toggleSize: 37.0,
+                  onToggle: (val) {
+                    setState(() {
+                      _notifications = val;
+                      print(_notifications);
+                    });
+                    _saveSettings();
+                  },
+                ),
+              ],
+            ),
+            SizedBox(height: 24,),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Пол', style: TextStyle(fontSize: 20)),
+                FlutterSwitch(
+                  value: _gender,
+                  width: 104.0,
+                  height: 47.0,
+                  borderRadius: 50.0,
+                  valueFontSize: 25.0,
+                  switchBorder: Border(
+                    top: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    right: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    bottom: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                    left: BorderSide(color: Color.fromRGBO(54, 78, 101, 1), width: 2),
+                  ),
+                  activeText: "М",
+                  activeTextColor: Color.fromRGBO(255, 255, 255, 1),
+                  activeColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveText: "Ж",
+                  inactiveTextColor: Color.fromRGBO(0, 114, 188, 1),
+                  inactiveColor: Color.fromRGBO(255, 255, 255, 1),
+                  inactiveToggleColor: Color.fromRGBO(0, 114, 188, 1),
+                  showOnOff: true,
+                  toggleSize: 37.0,
+                  onToggle: (val) {
+                    setState(() {
+                      _gender = val;
+                      print(_gender);
+                    });
+                    _saveSettings();
+                  },
+                ),
+              ],
+            ),
+            SizedBox(height: 24,),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                    'Дата рождения\n${_birthDate.split('T')[0]}',
+                    style: TextStyle(fontSize: 20)
+                ),
+                ElevatedButton(
+                    onPressed: () async {
+                      String? selectedDate = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => DatePickerPage()),
+                      );
+                      if (selectedDate != null) {
+                        setState(() {
+                          _birthDate = selectedDate;
+                        });
+                        _saveSettings();
+                      }
+                    },
+                    child: Text('Изменить')
+                )
+              ],
+            ),
+            SizedBox(height: 24,),
+
+          ],
+        ),
+      ),
     );
   }
 }
