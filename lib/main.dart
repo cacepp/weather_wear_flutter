@@ -198,7 +198,7 @@ class _WeatherPageState extends State<WeatherPage> {
       cityController.text = savedCity; // Установка значения в контроллер
 
       // Программное нажатие кнопки Refresh Weather
-      final appState = Provider.of<AppState>(context, listen: false);
+      final appState = Provider.of<AppState>(context as BuildContext, listen: false);
       appState.updateCity(savedCity);
       await appState.fetchCurrentWeather();
       await appState.fetchWeatherForecast();
