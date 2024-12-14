@@ -6,8 +6,8 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:weather_wear_flutter/pages/city_picker_page.dart';
 import 'package:weather_wear_flutter/pages/date_picker_page.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
 import 'dart:async';
+import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:intl/intl.dart';
 
@@ -19,17 +19,17 @@ void main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
 
-  String path = join(await getDatabasesPath(), 'recom.db');
+  String path = '${await getDatabasesPath()}${Platform.pathSeparator}"recom.db"';
 
   Database db = await openDatabase(
-    path,
-    version: 1,
-    onCreate: (db, version) async {
-      var batch = db.batch();
-      createTableHistory(batch);
-      await batch.commit();
-    },
-    onDowngrade: onDatabaseDowngradeDelete
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        var batch = db.batch();
+        createTableHistory(batch);
+        await batch.commit();
+      },
+      onDowngrade: onDatabaseDowngradeDelete
   );
 
   await populateDatabase(db);
@@ -101,7 +101,7 @@ class AppState extends ChangeNotifier {
 class HomePage extends StatefulWidget {
   final List<Map<String, dynamic>> historyData;
 
-  const HomePage({Key? key, required this.historyData}) : super(key: key);
+  const HomePage({super.key, required this.historyData});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -198,7 +198,7 @@ class _WeatherPageState extends State<WeatherPage> {
       cityController.text = savedCity; // Установка значения в контроллер
 
       // Программное нажатие кнопки Refresh Weather
-      final appState = Provider.of<AppState>(context as BuildContext, listen: false);
+      final appState = Provider.of<AppState>(context, listen: false);
       appState.updateCity(savedCity);
       await appState.fetchCurrentWeather();
       await appState.fetchWeatherForecast();
@@ -421,11 +421,6 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('History'),
-        centerTitle: true,
-        backgroundColor: Colors.lightBlue,
-      ),
       body: ListView.builder(
         itemCount: widget.historyData.length,
         itemBuilder: (context, index) {
