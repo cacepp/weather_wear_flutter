@@ -1,25 +1,11 @@
+import 'package:sqflite/sqflite.dart';
 import 'package:sqflite/sqlite_api.dart';
 
-Future<List<Recommendation>> getHistory(Database db) async {
-  final List<Map<String, Object?>> historyMaps = await db.query('tbl_history');
-
-  return historyMaps.map((map) {
-    return Recommendation(
-      id: map['id'] as int,
-      Temperature: map['Temperature'] as double,
-      Wet: map['Wet'] as double,
-      WindDirection: map['WindDirection'] as String,
-      WindSpeed: map['WindSpeed'] as double,
-      Precipitation: map['Precipitation'] as String,
-      FeelingTemperature: map['FeelingTemperature'] as double,
-      Date: map['Date'] as String,
-      RecommendationText: map['RecommendationText'] as String,
-      UserRating: map['UserRating'] as int,
-    );
-  }).toList();
+Future<List<Map<String, Object?>>> getHistory(Database db) async {
+  return await db.query('tbl_history');
 }
 
-Future<void> addHistoryRecord(Recommendation record, Database db) async {
+Future<void> addRecord(Recommendation record, Database db) async {
   // Insert the Dog into the correct table. You might also specify the
   // `conflictAlgorithm` to use in case the same dog is inserted twice.
   //
@@ -29,6 +15,22 @@ Future<void> addHistoryRecord(Recommendation record, Database db) async {
     record.toMap(),
     conflictAlgorithm: ConflictAlgorithm.replace,
   );
+}
+
+void createTableHistory(Batch batch) {
+  batch.execute('DROP TABLE IF EXISTS tbl_history');
+  batch.execute('''CREATE TABLE tbl_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Temperature REAL,
+    Wet REAL,
+    WindDirection TEXT,
+    WindSpeed REAL,
+    Precipitation TEXT,
+    FeelingTemperature REAL,
+    Date TEXT,
+    RecommendationText TEXT,
+    UserRating INTEGER
+  )''');
 }
 
 
@@ -113,6 +115,6 @@ Future<void> populateDatabase(Database db) async {
   ];
 
   for (var recommendation in recommendations) {
-    await addHistoryRecord(recommendation, db);
+    await addRecord(recommendation, db);
   }
 }

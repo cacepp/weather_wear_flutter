@@ -10,80 +10,56 @@ import 'package:path/path.dart';
 import 'dart:async';
 
 import 'services/weather_service.dart';
-import 'services/db.dart';
-
-Future<Database> initDatabase() async {
-  try {
-    final databasePath = await getDatabasesPath();
-    final path = join(databasePath, 'recom.db');
-
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: (db, version) {
-        return db.execute(
-          'CREATE TABLE tbl_history ('
-            'id INTEGER PRIMARY KEY AUTOINCREMENT, '
-            'Temperature REAL, '
-            'Wet REAL, '
-            'WindDirection TEXT, '
-            'WindSpeed REAL, '
-            'Precipitation TEXT, '
-            'FeelingTemperature REAL, '
-            'Date TEXT, '
-            'RecommendationText TEXT, '
-            'UserRating INTEGER'
-          ')',
-        );
-      },
-    );
-  } catch (e) {
-    print('Error initializing database: $e');
-    rethrow;
-  }
-}
+import 'db.dart';
 
 void main() async {
   await dotenv.load(fileName: "env/.env");
 
   WidgetsFlutterBinding.ensureInitialized();
 
-  final db = await initDatabase();
+  String path = join(await getDatabasesPath(), 'recom.db');
 
+  Database db = await openDatabase(
+    path,
+    version: 1,
+    onCreate: (db, version) async {
+      var batch = db.batch();
+      createTableHistory(batch);
+      await batch.commit();
+    },
+    onDowngrade: onDatabaseDowngradeDelete
+  );
 
-  // ПОТОМ УБРАТЬ
   await populateDatabase(db);
 
+  List<Map<String, dynamic>> historyData = await getHistory(db);
 
 
-  runApp(App(database: db,));
+  runApp(App(historyData: historyData));
 }
 
 class App extends StatelessWidget {
-  final Database database;
+  final List<Map<String, dynamic>> historyData;
 
-  const App({super.key, required this.database});
+  const App({Key? key, required this.historyData}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => AppState(database),
+      create: (context) => AppState(),
       child: MaterialApp(
         title: 'Weather Wear',
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Color.fromRGBO(171, 221, 240, 1)),
         ),
-        home: HomePage(),
+        home: HomePage(historyData: historyData),
       ),
     );
   }
 }
 
 class AppState extends ChangeNotifier {
-  final Database db;
-
-  AppState(this.db);
   String city = '';
   String currentWeather = '';
   List<String> weatherForecast = [];
@@ -124,6 +100,10 @@ class AppState extends ChangeNotifier {
 }
 
 class HomePage extends StatefulWidget {
+  final List<Map<String, dynamic>> historyData;
+
+  const HomePage({Key? key, required this.historyData}) : super(key: key);
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -137,7 +117,7 @@ class _HomePageState extends State<HomePage> {
     Widget page;
     switch (_selectedIndex) {
       case 0:
-        page = HistoryPage();
+        page = HistoryPage(historyData: widget.historyData);
         _selectedPageName = 'История';
       case 1:
         page = WeatherPage();
@@ -270,53 +250,139 @@ class _WeatherPageState extends State<WeatherPage> {
 }
 
 class HistoryPage extends StatefulWidget {
+  final List<Map<String, dynamic>> historyData;
+
+  HistoryPage({required this.historyData});
+
   @override
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  // late Future<List<Recommendation>> recommendations;
-  //
-  // @override
-  // void initState() {
-  //   super.initState();
-  //
-  //   // TODO: Исправить ошибку
-  //   // Initialize recommendations using the AppState provider
-  //   final db = Provider.of<AppState>(context, listen: false).db;
-  //   recommendations = getHistory(db);
-  // }
-
   @override
   Widget build(BuildContext context) {
-    return Placeholder();
-    // return FutureBuilder<List<Recommendation>>(
-    //   future: recommendations,
-    //   builder: (context, snapshot) {
-    //     if (snapshot.connectionState == ConnectionState.waiting) {
-    //       return Center(child: CircularProgressIndicator());
-    //     } else if (snapshot.hasError) {
-    //       return Center(child: Text('Error: ${snapshot.error}'));
-    //     } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-    //       return Center(child: Text('No history available.'));
-    //     }
-    //
-    //     final data = snapshot.data!;
-    //     return ListView.builder(
-    //       itemCount: data.length,
-    //       itemBuilder: (context, index) {
-    //         final recommendation = data[index];
-    //         return ListTile(
-    //           title: Text(recommendation.RecommendationText),
-    //           subtitle: Text(
-    //             'Date: ${recommendation.Date} | Temp: ${recommendation.Temperature}°C',
-    //           ),
-    //           trailing: Text('Rating: ${recommendation.UserRating}/5'),
-    //         );
-    //       },
-    //     );
-    //   },
-    // );
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('History'),
+        centerTitle: true,
+        backgroundColor: Colors.lightBlue,
+      ),
+      body: ListView.builder(
+        itemCount: widget.historyData.length,
+        itemBuilder: (context, index) {
+          final item = widget.historyData[index];
+          return _buildWeatherCard(item);
+        },
+      ),
+    );
+  }
+
+  // Виджет карточки истории погоды
+  Widget _buildWeatherCard(Map<String, dynamic> weather) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Заголовок с датой
+          Text(
+            weather['Date'],
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              // Иконка погоды и осадки
+              Column(
+                children: [
+                  Icon(
+                    weather['Precipitation'] == 'Rain'
+                        ? Icons.cloud_queue
+                        : Icons.wb_sunny, // Иконка зависит от осадков
+                    size: 50,
+                    color: weather['Precipitation'] == 'Rain'
+                        ? Colors.blueGrey
+                        : Colors.orangeAccent,
+                  ),
+                  Text(
+                    weather['Precipitation'],
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 20),
+              // Температуры и влажность
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Temperature: ${weather['Temperature']}°C',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    Text(
+                      'Feels like: ${weather['FeelingTemperature']}°C',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Icon(Icons.water_drop, size: 18, color: Colors.blue),
+                        const SizedBox(width: 5),
+                        Text('${weather['Wet']} %'),
+                        const SizedBox(width: 15),
+                        Icon(Icons.air, size: 18, color: Colors.grey),
+                        const SizedBox(width: 5),
+                        Text(
+                            '${weather['WindSpeed']} m/s ${weather['WindDirection']}'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Текст рекомендации
+          Text(
+            weather['RecommendationText'],
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
+          ),
+          const SizedBox(height: 10),
+          // Оценка пользователя
+          Row(
+            children: [
+              const Text(
+                'User Rating:',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 5),
+              for (int i = 0; i < weather['UserRating']; i++)
+                const Icon(Icons.star, color: Colors.amber, size: 16),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
