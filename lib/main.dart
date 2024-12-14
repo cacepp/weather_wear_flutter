@@ -5,18 +5,45 @@ import 'package:provider/provider.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:weather_wear_flutter/pages/city_picker_page.dart';
 import 'package:weather_wear_flutter/pages/date_picker_page.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:intl/intl.dart';
 
 import 'services/weather_service.dart';
+import 'db.dart';
 
 void main() async {
   await dotenv.load(fileName: "env/.env");
-  runApp(App());
+
+  WidgetsFlutterBinding.ensureInitialized();
+
+  String path = join(await getDatabasesPath(), 'recom.db');
+
+  Database db = await openDatabase(
+    path,
+    version: 1,
+    onCreate: (db, version) async {
+      var batch = db.batch();
+      createTableHistory(batch);
+      await batch.commit();
+    },
+    onDowngrade: onDatabaseDowngradeDelete
+  );
+
+  await populateDatabase(db);
+
+  List<Map<String, dynamic>> historyData = await getHistory(db);
+
+
+  runApp(App(historyData: historyData));
 }
 
 class App extends StatelessWidget {
-  const App({super.key});
+  final List<Map<String, dynamic>> historyData;
+
+  const App({Key? key, required this.historyData}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +55,7 @@ class App extends StatelessWidget {
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Color.fromRGBO(171, 221, 240, 1)),
         ),
-        home: HomePage(),
+        home: HomePage(historyData: historyData),
       ),
     );
   }
@@ -40,6 +67,7 @@ class AppState extends ChangeNotifier {
   List<WeatherForecast> weatherForecast = [];  // 5-day weather forecast
 
   final WeatherService weatherService = WeatherService();
+
 
   // Update city
   void updateCity(String newCity) {
@@ -71,6 +99,10 @@ class AppState extends ChangeNotifier {
 }
 
 class HomePage extends StatefulWidget {
+  final List<Map<String, dynamic>> historyData;
+
+  const HomePage({Key? key, required this.historyData}) : super(key: key);
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -84,23 +116,21 @@ class _HomePageState extends State<HomePage> {
     Widget page;
     switch (_selectedIndex) {
       case 0:
-        page = HistoryPage();
+        page = HistoryPage(historyData: widget.historyData);
         _selectedPageName = 'История';
-        break;
       case 1:
         page = WeatherPage();
         _selectedPageName = 'Погода';
-        break;
       case 2:
         page = SettingsPage();
         _selectedPageName = 'Настройки';
-        break;
       default:
         throw UnimplementedError('no widget for $_selectedIndex');
     }
 
     return Scaffold(
       appBar: AppBar(
+
         title: Text(
           _selectedPageName,
           style: TextStyle(fontSize: 40.0),
@@ -378,13 +408,143 @@ class WeatherDetails extends StatelessWidget {
   }
 }
 
-class HistoryPage extends StatelessWidget {
+class HistoryPage extends StatefulWidget {
+  final List<Map<String, dynamic>> historyData;
+
+  HistoryPage({required this.historyData});
+
+  @override
+  State<HistoryPage> createState() => _HistoryPageState();
+}
+
+class _HistoryPageState extends State<HistoryPage> {
   @override
   Widget build(BuildContext context) {
-    //TODO: сделать страницу с историей запросов
-    return Placeholder();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('History'),
+        centerTitle: true,
+        backgroundColor: Colors.lightBlue,
+      ),
+      body: ListView.builder(
+        itemCount: widget.historyData.length,
+        itemBuilder: (context, index) {
+          final item = widget.historyData[index];
+          return _buildWeatherCard(item);
+        },
+      ),
+    );
+  }
+
+  // Виджет карточки истории погоды
+  Widget _buildWeatherCard(Map<String, dynamic> weather) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Заголовок с датой
+          Text(
+            weather['Date'],
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              // Иконка погоды и осадки
+              Column(
+                children: [
+                  Icon(
+                    weather['Precipitation'] == 'Rain'
+                        ? Icons.cloud_queue
+                        : Icons.wb_sunny, // Иконка зависит от осадков
+                    size: 50,
+                    color: weather['Precipitation'] == 'Rain'
+                        ? Colors.blueGrey
+                        : Colors.orangeAccent,
+                  ),
+                  Text(
+                    weather['Precipitation'],
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 20),
+              // Температуры и влажность
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Temperature: ${weather['Temperature']}°C',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    Text(
+                      'Feels like: ${weather['FeelingTemperature']}°C',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Icon(Icons.water_drop, size: 18, color: Colors.blue),
+                        const SizedBox(width: 5),
+                        Text('${weather['Wet']} %'),
+                        const SizedBox(width: 15),
+                        Icon(Icons.air, size: 18, color: Colors.grey),
+                        const SizedBox(width: 5),
+                        Text(
+                            '${weather['WindSpeed']} m/s ${weather['WindDirection']}'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Текст рекомендации
+          Text(
+            weather['RecommendationText'],
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
+          ),
+          const SizedBox(height: 10),
+          // Оценка пользователя
+          Row(
+            children: [
+              const Text(
+                'User Rating:',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 5),
+              for (int i = 0; i < weather['UserRating']; i++)
+                const Icon(Icons.star, color: Colors.amber, size: 16),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
+
 
 class SettingsPage extends StatefulWidget {
   @override
