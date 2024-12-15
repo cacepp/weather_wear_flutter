@@ -264,34 +264,53 @@ class _WeatherPageState extends State<WeatherPage> {
                   children: [
                     Text(forecast.date, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     SizedBox(height: 8),
-                    Text('${forecast.temperature}°C', style: TextStyle(fontSize: 20)),
-                    Text(forecast.description, style: TextStyle(fontSize: 14)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.thermostat, size: 24, color: Colors.orange),
+                        Text('${forecast.temperature.ceil()}°C', style: TextStyle(fontSize: 20)),
+                      ],
+                    ),
                     SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.air, size: 24), // Icon for wind
+                        Icon(Icons.cloud, size: 24, color: Colors.blue[200]),
                         SizedBox(width: 8),
-                        Text('Wind: ${forecast.windSpeed} m/s', style: TextStyle(fontSize: 14)),
+                        Text(forecast.description, style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.air,
+                          size: 24,
+                          color: Colors.blueGrey,
+                        ),// Icon for wind
+                        SizedBox(width: 8),
+                        Text('Wind: ${forecast.windSpeed.ceil()} m/s', style: TextStyle(fontSize: 14)),
                         SizedBox(width: 8),
                         Text(_getWindDirection(forecast.windDegree), style: TextStyle(fontSize: 14)), // Text for wind direction
                       ],
                     ),
+                    SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.water_drop, size: 24), // Icon for humidity
+                        Icon(Icons.water_drop, size: 24, color: Colors.blue), // Icon for humidity
                         SizedBox(width: 8),
                         Text('Humidity: ${forecast.humidity}%', style: TextStyle(fontSize: 14)),
                       ],
                     ),
                     // Row(
-                    //   mainAxisAlignment: MainAxisAlignment.center,
-                    //   children: [
-                    //     Icon(Icons.cloud, size: 24), // Icon for precipitation
-                    //     SizedBox(width: 8),
-                    //     Text('Precipitation: ${forecast.precipitation}', style: TextStyle(fontSize: 14)),
-                    //   ],
+                    //    mainAxisAlignment: MainAxisAlignment.center,
+                    //    children: [
+                    //      Icon(Icons.cloud, size: 24), // Icon for precipitation
+                    //      SizedBox(width: 8),
+                    //      Text('Precipitation: ${forecast.precipitation}', style: TextStyle(fontSize: 14)),
+                    //    ],
                     // ),
                   ],
                 ),
@@ -372,7 +391,7 @@ class WeatherDetails extends StatelessWidget {
           children: [
             Icon(Icons.thermostat, size: 24),  // Icon for temperature
             SizedBox(width: 8),
-            Text('Temperature: ${weather.temperature}°C', style: TextStyle(fontSize: 18)),
+            Text('Temperature: ${weather.temperature.ceil()}°C', style: TextStyle(fontSize: 18)),
           ],
         ),
         Row(
@@ -386,7 +405,7 @@ class WeatherDetails extends StatelessWidget {
           children: [
             Icon(Icons.air, size: 24),  // Icon for wind speed
             SizedBox(width: 8),
-            Text('Wind Speed: ${weather.windSpeed} m/s', style: TextStyle(fontSize: 16)),
+            Text('Wind Speed: ${weather.windSpeed.ceil()} m/s', style: TextStyle(fontSize: 16)),
           ],
         ),
         Row(
