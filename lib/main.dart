@@ -21,6 +21,8 @@ void main() async {
 
   String path = '${await getDatabasesPath()}${Platform.pathSeparator}"recom.db"';
 
+  // await deleteDatabase(path);
+
   Database db = await openDatabase(
       path,
       version: 1,
@@ -32,18 +34,16 @@ void main() async {
       onDowngrade: onDatabaseDowngradeDelete
   );
 
+  // Срабатывает при запуске приложения
   await populateDatabase(db);
 
-  List<Map<String, dynamic>> historyData = await getHistory(db);
-
-
-  runApp(App(historyData: historyData));
+  runApp(App(db: db));
 }
 
 class App extends StatelessWidget {
-  final List<Map<String, dynamic>> historyData;
+  final Database db;
 
-  const App({Key? key, required this.historyData}) : super(key: key);
+  const App({super.key, required this.db});
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +55,7 @@ class App extends StatelessWidget {
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Color.fromRGBO(171, 221, 240, 1)),
         ),
-        home: HomePage(historyData: historyData),
+        home: HomePage(db: db),
       ),
     );
   }
@@ -99,9 +99,9 @@ class AppState extends ChangeNotifier {
 }
 
 class HomePage extends StatefulWidget {
-  final List<Map<String, dynamic>> historyData;
+  final Database db;
 
-  const HomePage({super.key, required this.historyData});
+  const HomePage({super.key, required this.db});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -116,7 +116,7 @@ class _HomePageState extends State<HomePage> {
     Widget page;
     switch (_selectedIndex) {
       case 0:
-        page = HistoryPage(historyData: widget.historyData);
+        page = HistoryPage(db: widget.db);
         _selectedPageName = 'История';
       case 1:
         page = WeatherPage();
@@ -130,7 +130,6 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-
         title: Text(
           _selectedPageName,
           style: TextStyle(fontSize: 40.0),
@@ -215,13 +214,13 @@ class _WeatherPageState extends State<WeatherPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // City input field
+          SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: TextField(
               controller: cityController,
               decoration: InputDecoration(
-                labelText: 'Enter city',
+                labelText: 'Город',
                 border: OutlineInputBorder(),
               ),
               onSubmitted: (value) {
@@ -235,7 +234,7 @@ class _WeatherPageState extends State<WeatherPage> {
 
           // City and current weather display
           Text(
-            'Current Weather for ${appState.city}',
+            appState.city,
             style: Theme.of(context).textTheme.headlineMedium,
           ),
           SizedBox(height: 20),
@@ -258,7 +257,7 @@ class _WeatherPageState extends State<WeatherPage> {
                 margin: EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.grey[200], // Background color
-                  borderRadius: BorderRadius.circular(10), // Rounded corners
+                  borderRadius: BorderRadius.circular(50), // Rounded corners
                 ),
                 child: Column(
                   children: [
@@ -317,23 +316,19 @@ class _WeatherPageState extends State<WeatherPage> {
               );
             },
             options: CarouselOptions(
-              height: 400,
+              height: 256,
               enlargeCenterPage: true,
-              scrollDirection: Axis.vertical, // Vertical scroll
+              scrollDirection: Axis.horizontal, // Vertical scroll
               enableInfiniteScroll: false,
             ),
           ),
 
           SizedBox(height: 20),
-
-          // Refresh button for weather data
           ElevatedButton(
             onPressed: () async {
-              final appState = Provider.of<AppState>(context, listen: false);
-              await appState.fetchCurrentWeather();
-              await appState.fetchWeatherForecast();
+              print('Получение рекомендации');
             },
-            child: Text('Refresh Weather'),
+            child: Text('Получить рекомендацию'),
           ),
         ],
       ),
@@ -385,73 +380,145 @@ class WeatherDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Icon(Icons.thermostat, size: 24),  // Icon for temperature
-            SizedBox(width: 8),
-            Text('Temperature: ${weather.temperature.ceil()}°C', style: TextStyle(fontSize: 18)),
-          ],
-        ),
-        Row(
-          children: [
-            Icon(Icons.cloud, size: 24),  // Icon for weather description
-            SizedBox(width: 8),
-            Text('Description: ${weather.description}', style: TextStyle(fontSize: 16)),
-          ],
-        ),
-        Row(
-          children: [
-            Icon(Icons.air, size: 24),  // Icon for wind speed
-            SizedBox(width: 8),
-            Text('Wind Speed: ${weather.windSpeed.ceil()} m/s', style: TextStyle(fontSize: 16)),
-          ],
-        ),
-        Row(
-          children: [
-            Icon(Icons.water_drop, size: 24),  // Icon for humidity
-            SizedBox(width: 8),
-            Text('Humidity: ${weather.humidity}%', style: TextStyle(fontSize: 16)),
-          ],
-        ),
-        Row(
-          children: [
-            Icon(Icons.cloud, size: 24),  // Icon for precipitation
-            SizedBox(width: 8),
-            Text('Precipitation: ${weather.precipitation}', style: TextStyle(fontSize: 16)),
-          ],
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.all(10.0),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.thermostat, size: 24),  // Icon for temperature
+              SizedBox(width: 8),
+              Text('Температура: ${weather.temperature.ceil()}°C', style: TextStyle(fontSize: 18)),
+            ],
+          ),
+          Row(
+            children: [
+              Icon(Icons.cloud, size: 24),  // Icon for weather description
+              SizedBox(width: 8),
+              Text('Погода: ${weather.description}', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          Row(
+            children: [
+              Icon(Icons.air, size: 24),  // Icon for wind speed
+              SizedBox(width: 8),
+              Text('Скорость ветра: ${weather.windSpeed.ceil()} m/s', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          Row(
+            children: [
+              Icon(Icons.water_drop, size: 24),  // Icon for humidity
+              SizedBox(width: 8),
+              Text('Влажность: ${weather.humidity}%', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          Row(
+            children: [
+              Icon(Icons.cloud, size: 24),  // Icon for precipitation
+              SizedBox(width: 8),
+              Text('Осадки: ${weather.precipitation}', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
 class HistoryPage extends StatefulWidget {
-  final List<Map<String, dynamic>> historyData;
+  final Database db;
 
-  HistoryPage({required this.historyData});
+  HistoryPage({required this.db});
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
 class _HistoryPageState extends State<HistoryPage> {
+  List<Map<String, dynamic>> historyData = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistoryData();
+  }
+
+  Future<void> _loadHistoryData() async {
+    try {
+      List<Map<String, dynamic>> data = await getHistory(widget.db);
+      setState(() {
+        historyData = data;
+      });
+    } catch (e) {
+      print("Error loading history data: $e");
+    }
+  }
+
+  Future<void> _deleteHistory() async {
+    try {
+      await widget.db.rawDelete('DELETE FROM tbl_history');
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Success'),
+            content: Text('История успешно удалена.'),
+            actions: <Widget>[
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      print('Ошибка при удалении всех записей: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: ListView.builder(
-        itemCount: widget.historyData.length,
-        itemBuilder: (context, index) {
-          final item = widget.historyData[index];
-          return _buildWeatherCard(item);
-        },
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 650,
+            child: historyData.isNotEmpty
+                ? ListView.builder(
+              itemCount: historyData.length,
+              itemBuilder: (context, index) {
+                final item = historyData[index];
+                return _buildWeatherHistoryCard(item);
+              },
+            )
+                : Center(child: Text('Нет запросов.')),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              _deleteHistory();
+              print('History deleted');
+              _loadHistoryData();
+            },
+            style: ElevatedButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Удалить историю'),
+          ),
+        ],
       ),
     );
   }
 
+
+
+
   // Виджет карточки истории погоды
-  Widget _buildWeatherCard(Map<String, dynamic> weather) {
+  Widget _buildWeatherHistoryCard(Map<String, dynamic> weather) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(12),
@@ -504,33 +571,31 @@ class _HistoryPageState extends State<HistoryPage> {
               ),
               const SizedBox(width: 20),
               // Температуры и влажность
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Temperature: ${weather['Temperature']}°C',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    Text(
-                      'Feels like: ${weather['FeelingTemperature']}°C',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        Icon(Icons.water_drop, size: 18, color: Colors.blue),
-                        const SizedBox(width: 5),
-                        Text('${weather['Wet']} %'),
-                        const SizedBox(width: 15),
-                        Icon(Icons.air, size: 18, color: Colors.grey),
-                        const SizedBox(width: 5),
-                        Text(
-                            '${weather['WindSpeed']} m/s ${weather['WindDirection']}'),
-                      ],
-                    ),
-                  ],
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Temperature: ${weather['Temperature']}°C',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  Text(
+                    'Feels like: ${weather['FeelingTemperature']}°C',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Icon(Icons.water_drop, size: 18, color: Colors.blue),
+                      const SizedBox(width: 5),
+                      Text('${weather['Wet']} %'),
+                      const SizedBox(width: 15),
+                      Icon(Icons.air, size: 18, color: Colors.grey),
+                      const SizedBox(width: 5),
+                      Text(
+                          '${weather['WindSpeed']} m/s ${weather['WindDirection']}'),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),

@@ -35,7 +35,7 @@ void createTableHistory(Batch batch) {
 
 
 class Recommendation {
-  final int id;
+  final int? id;
   final double Temperature;
   final double Wet;
   final String WindDirection;
@@ -102,6 +102,78 @@ Future<void> populateDatabase(Database db) async {
     ),
     Recommendation(
       id: 2,
+      Temperature: 15.0,
+      Wet: 80.0,
+      WindDirection: 'East',
+      WindSpeed: 10.0,
+      Precipitation: 'Rain',
+      FeelingTemperature: 12.0,
+      Date: '2024-12-10',
+      RecommendationText: 'Carry an umbrella!',
+      UserRating: 4,
+    ),
+    Recommendation(
+      id: 3,
+      Temperature: 15.0,
+      Wet: 80.0,
+      WindDirection: 'East',
+      WindSpeed: 10.0,
+      Precipitation: 'Rain',
+      FeelingTemperature: 12.0,
+      Date: '2024-12-10',
+      RecommendationText: 'Carry an umbrella!',
+      UserRating: 4,
+    ),
+    Recommendation(
+      id: 4,
+      Temperature: 15.0,
+      Wet: 80.0,
+      WindDirection: 'East',
+      WindSpeed: 10.0,
+      Precipitation: 'Rain',
+      FeelingTemperature: 12.0,
+      Date: '2024-12-10',
+      RecommendationText: 'Carry an umbrella!',
+      UserRating: 4,
+    ),
+    Recommendation(
+      id: 5,
+      Temperature: 15.0,
+      Wet: 80.0,
+      WindDirection: 'East',
+      WindSpeed: 10.0,
+      Precipitation: 'Rain',
+      FeelingTemperature: 12.0,
+      Date: '2024-12-10',
+      RecommendationText: 'Carry an umbrella!',
+      UserRating: 4,
+    ),
+    Recommendation(
+      id: 6,
+      Temperature: 15.0,
+      Wet: 80.0,
+      WindDirection: 'East',
+      WindSpeed: 10.0,
+      Precipitation: 'Rain',
+      FeelingTemperature: 12.0,
+      Date: '2024-12-10',
+      RecommendationText: 'Carry an umbrella!',
+      UserRating: 4,
+    ),
+    Recommendation(
+      id: 7,
+      Temperature: 15.0,
+      Wet: 80.0,
+      WindDirection: 'East',
+      WindSpeed: 10.0,
+      Precipitation: 'Rain',
+      FeelingTemperature: 12.0,
+      Date: '2024-12-10',
+      RecommendationText: 'Carry an umbrella!',
+      UserRating: 4,
+    ),
+    Recommendation(
+      id: 8,
       Temperature: 15.0,
       Wet: 80.0,
       WindDirection: 'East',
