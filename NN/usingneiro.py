@@ -3,19 +3,27 @@ import pickle
 from tensorflow.keras.models import load_model
 import random
 import pandas as pd
+from inputData import input_data
 
-def read_input_data(file_path):
+def read_input_data():
     """
-    Читает данные из CSV файла и возвращает их в виде списка словарей.
-    
-    Args:
-        file_path (str): Путь к файлу с данными.
+    Обрабатывает данные из переменной input_data (JSON-объект) и возвращает их в виде списка словарей.
     
     Returns:
         list: Список словарей с данными.
     """
-    data = pd.read_csv(file_path)
-    input_data_list = data.to_dict(orient='records')  # Преобразуем строки в словари
+    # Проверка, является ли input_data списком словарей
+    if isinstance(input_data, list):
+        input_data_list = input_data  # Если это уже список, просто присваиваем
+
+    # Если это словарь, то нормализуем данные в список словарей
+    elif isinstance(input_data, dict):
+        input_data_list = pd.json_normalize(input_data).to_dict(orient='records')
+    
+    else:
+        # Если формат данных неизвестен, выбрасываем ошибку
+        raise ValueError("Неизвестный формат данных в input_data")
+    
     return input_data_list
 
 def predict_clothing_recommendation_from_data(inputData):
