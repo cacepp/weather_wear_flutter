@@ -5,7 +5,6 @@ class ApiService {
   // URL API
   static const String baseUrl = 'http://195.133.13.249:8000/predict';
 
-  // Метод для получения рекомендаций
   Future<Map<String, dynamic>> getRecommendations({
     required double temperature,
     required double windSpeed,
@@ -13,7 +12,6 @@ class ApiService {
     required String sex,
     required int age,
   }) async {
-    // Подготовка тела запроса
     final Map<String, dynamic> requestBody = {
       "Temperature": temperature,
       "Wind_Speed": windSpeed,
@@ -23,30 +21,25 @@ class ApiService {
     };
 
     try {
-      // Выполнение POST-запроса
       final response = await http.post(
         Uri.parse(baseUrl),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(requestBody),
       );
 
-      // Проверка статуса ответа
-      if (response.statusCode == 200) {
-        // Распаковка JSON-ответа
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        return {
-          "recommendation": data['recommendation'],
-          "success": true,
-        };
-      } else {
-        // Ошибка при некорректном ответе
+      if (response.statusCode != 200) {
         return {
           "error": "Error: ${response.statusCode}, ${response.body}",
           "success": false,
         };
       }
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      return {
+        "recommendation": data['recommendation'],
+        "success": true,
+      };
     } catch (e) {
-      // Обработка исключений
       return {
         "error": "Connection error: $e",
         "success": false,

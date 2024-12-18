@@ -1,16 +1,20 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_switch/flutter_switch.dart';
 import 'package:provider/provider.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:weather_wear_flutter/pages/city_picker_page.dart';
-import 'package:weather_wear_flutter/pages/date_picker_page.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:intl/intl.dart';
+import 'package:intl/intl.dart';
 
+import 'package:weather_wear_flutter/pages/city_picker_page.dart';
+import 'package:weather_wear_flutter/pages/date_picker_page.dart';
+
+import 'services/api_service.dart';
 import 'services/weather_service.dart';
 import 'db.dart';
 
@@ -20,8 +24,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   String path = '${await getDatabasesPath()}${Platform.pathSeparator}"recom.db"';
-
-  // await deleteDatabase(path);
 
   Database db = await openDatabase(
       path,
@@ -34,7 +36,7 @@ void main() async {
       onDowngrade: onDatabaseDowngradeDelete
   );
 
-  // Срабатывает при запуске приложения
+  // Срабатывает при запуске приложения (в проде убрать)
   await populateDatabase(db);
 
   runApp(App(db: db));
@@ -62,20 +64,19 @@ class App extends StatelessWidget {
 }
 
 class AppState extends ChangeNotifier {
-  String city = '';  // City name
-  WeatherData? weatherData;  // Current weather data
+  String city = '';
+  WeatherData? weatherData;
   List<WeatherForecast> weatherForecast = [];  // 5-day weather forecast
+  String recommendation = '';
 
   final WeatherService weatherService = WeatherService();
+  final ApiService apiService = ApiService();
 
-
-  // Update city
   void updateCity(String newCity) {
     city = newCity;
     notifyListeners();
   }
 
-  // Fetch current weather
   Future<void> fetchCurrentWeather() async {
     try {
       final weather = await weatherService.fetchCurrentWeather(city);
@@ -83,6 +84,50 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error fetching current weather: $e');
+    }
+  }
+
+  Future<void> sendPromptToApi() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // final bool temperatureUnit = prefs.getBool('temperature') ?? true; // true: Цельсий, false: Фаренгейт
+      final bool gender = prefs.getBool('gender') ?? true; // true: male, false: female
+      final String birthDate = prefs.getString('birthDate') ?? DateTime.now().toIso8601String();
+      final String city = prefs.getString('city') ?? 'Не выбран';
+
+      final int userAge = DateTime.now().year - DateTime.parse(birthDate).year;
+
+      if (city == 'Не выбран') {
+        throw Exception('Город не выбран. Выберите город в настройках.');
+      }
+
+      final temperature = weatherData?.temperature ?? 0.0;
+      final windSpeed = weatherData?.windSpeed ?? 0.0;
+      final precipitation = weatherData!.precipitation.contains('Rain') || weatherData!.precipitation.contains('Snow')
+          ? double.tryParse(weatherData!.precipitation.split(':')[1].split(' ')[0]) ?? 0.0
+          : 0.0;
+
+      final String sex = gender ? 'male' : 'female';
+
+      final response = await apiService.getRecommendations(
+        temperature: temperature,
+        windSpeed: windSpeed,
+        precipitation: precipitation,
+        sex: sex,
+        age: userAge,
+      );
+
+      if (response['success']) {
+        final result = utf8.decode(response['recommendation'].codeUnits);
+        recommendation = result;
+      } else {
+        final String error = response['error'];
+        print('Ошибка: $error');
+      }
+    } catch (e) {
+      print('Ошибка при отправке запроса: $e');
+    } finally {
+      notifyListeners();
     }
   }
 
@@ -113,6 +158,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final appState = Provider.of<AppState>(context);
+
     Widget page;
     switch (_selectedIndex) {
       case 0:
@@ -124,6 +171,17 @@ class _HomePageState extends State<HomePage> {
       case 2:
         page = SettingsPage();
         _selectedPageName = 'Настройки';
+      case 3:
+        if (appState.weatherData != null) {
+          page = RecommendationPage(
+            weatherData: appState.weatherData!,
+            recommendation: appState.recommendation,
+          );
+          _selectedPageName = 'Рекомендация';
+        } else {
+          page = Placeholder();
+          _selectedPageName = 'Рекомендация (Ошибка)';
+        }
       default:
         throw UnimplementedError('no widget for $_selectedIndex');
     }
@@ -182,7 +240,7 @@ class WeatherPage extends StatefulWidget {
 }
 
 class _WeatherPageState extends State<WeatherPage> {
-  TextEditingController cityController = TextEditingController(); // Controller for city input
+  TextEditingController cityController = TextEditingController();
 
   @override
   void initState() {
@@ -208,28 +266,26 @@ class _WeatherPageState extends State<WeatherPage> {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
 
-
     return SingleChildScrollView(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: TextField(
-              controller: cityController,
-              decoration: InputDecoration(
-                labelText: 'Город',
-                border: OutlineInputBorder(),
-              ),
-              onSubmitted: (value) {
-                appState.updateCity(value);
-                appState.fetchCurrentWeather();
-                appState.fetchWeatherForecast(); // Fetch forecast for the city
-              },
-            ),
-          ),
+          // Padding(
+          //   padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          //   child: TextField(
+          //     controller: cityController,
+          //     decoration: InputDecoration(
+          //       labelText: 'Город',
+          //       border: OutlineInputBorder(),
+          //     ),
+          //     onSubmitted: (value) {
+          //       appState.updateCity(value);
+          //       appState.fetchCurrentWeather();
+          //       appState.fetchWeatherForecast();
+          //     },
+          //   ),
+          // ),
           SizedBox(height: 20),
 
           // City and current weather display
@@ -256,8 +312,8 @@ class _WeatherPageState extends State<WeatherPage> {
                 padding: EdgeInsets.all(10),
                 margin: EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.grey[200], // Background color
-                  borderRadius: BorderRadius.circular(50), // Rounded corners
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(50),
                 ),
                 child: Column(
                   children: [
@@ -283,34 +339,22 @@ class _WeatherPageState extends State<WeatherPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.air,
-                          size: 24,
-                          color: Colors.blueGrey,
-                        ),// Icon for wind
+                        Icon(Icons.air, size: 24, color: Colors.blueGrey),
                         SizedBox(width: 8),
-                        Text('Wind: ${forecast.windSpeed.ceil()} m/s', style: TextStyle(fontSize: 14)),
+                        Text('Ветер: ${forecast.windSpeed.ceil()} m/s', style: TextStyle(fontSize: 14)),
                         SizedBox(width: 8),
-                        Text(_getWindDirection(forecast.windDegree), style: TextStyle(fontSize: 14)), // Text for wind direction
+                        Text(getWindDirection(forecast.windDegree.toDouble()), style: TextStyle(fontSize: 14)),
                       ],
                     ),
                     SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.water_drop, size: 24, color: Colors.blue), // Icon for humidity
+                        Icon(Icons.water_drop, size: 24, color: Colors.blue),
                         SizedBox(width: 8),
-                        Text('Humidity: ${forecast.humidity}%', style: TextStyle(fontSize: 14)),
+                        Text('Влажность: ${forecast.humidity}%', style: TextStyle(fontSize: 14)),
                       ],
                     ),
-                    // Row(
-                    //    mainAxisAlignment: MainAxisAlignment.center,
-                    //    children: [
-                    //      Icon(Icons.cloud, size: 24), // Icon for precipitation
-                    //      SizedBox(width: 8),
-                    //      Text('Precipitation: ${forecast.precipitation}', style: TextStyle(fontSize: 14)),
-                    //    ],
-                    // ),
                   ],
                 ),
               );
@@ -318,58 +362,43 @@ class _WeatherPageState extends State<WeatherPage> {
             options: CarouselOptions(
               height: 256,
               enlargeCenterPage: true,
-              scrollDirection: Axis.horizontal, // Vertical scroll
+              scrollDirection: Axis.horizontal,
               enableInfiniteScroll: false,
             ),
           ),
 
           SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () async {
-              print('Получение рекомендации');
-            },
-            child: Text('Получить рекомендацию'),
-          ),
+            ElevatedButton(
+              onPressed: () async {
+                await appState.sendPromptToApi();
+
+                if (appState.weatherData != null) {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RecommendationPage(
+                        weatherData: appState.weatherData!,
+                        recommendation: appState.recommendation,
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: Text('Получить рекомендацию'),
+            )
         ],
       ),
     );
   }
 
-  // Function to get wind direction as text
-  String _getWindDirection(int windDegree) {
-    if (windDegree >= 0 && windDegree < 22.5) {
-      return 'N';  // Север
-    } else if (windDegree >= 22.5 && windDegree < 45) {
-      return 'NNE'; // Северо-северо-восток
-    } else if (windDegree >= 45 && windDegree < 67.5) {
-      return 'NE';  // Северо-восток
-    } else if (windDegree >= 67.5 && windDegree < 90) {
-      return 'ENE'; // Восточно-северо-восток
-    } else if (windDegree >= 90 && windDegree < 112.5) {
-      return 'E';   // Восток
-    } else if (windDegree >= 112.5 && windDegree < 135) {
-      return 'ESE'; // Восточно-юго-восток
-    } else if (windDegree >= 135 && windDegree < 157.5) {
-      return 'SE';  // Юго-восток
-    } else if (windDegree >= 157.5 && windDegree < 180) {
-      return 'SSE'; // Южно-юго-восток
-    } else if (windDegree >= 180 && windDegree < 202.5) {
-      return 'S';   // Южный
-    } else if (windDegree >= 202.5 && windDegree < 225) {
-      return 'SSW'; // Южно-северо-запад
-    } else if (windDegree >= 225 && windDegree < 247.5) {
-      return 'SW';  // Южно-запад
-    } else if (windDegree >= 247.5 && windDegree < 270) {
-      return 'WSW'; // Западно-юго-запад
-    } else if (windDegree >= 270 && windDegree < 292.5) {
-      return 'W';   // Запад
-    } else if (windDegree >= 292.5 && windDegree < 315) {
-      return 'WNW'; // Западно-северо-запад
-    } else if (windDegree >= 315 && windDegree < 337.5) {
-      return 'NW';  // Северо-запад
-    } else {
-      return 'NNW'; // Северо-северо-запад (для случая, когда градус 337.5)
-    }
+  String getWindDirection(double windDegree) {
+    List<String> directions = [
+      'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+      'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'
+    ];
+
+    int index = ((windDegree % 360) / 22.5).round() % 16;
+    return directions[index];
   }
 }
 
@@ -386,35 +415,35 @@ class WeatherDetails extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.thermostat, size: 24),  // Icon for temperature
+              Icon(Icons.thermostat, size: 24, color: Colors.orange),
               SizedBox(width: 8),
               Text('Температура: ${weather.temperature.ceil()}°C', style: TextStyle(fontSize: 18)),
             ],
           ),
           Row(
             children: [
-              Icon(Icons.cloud, size: 24),  // Icon for weather description
+              Icon(Icons.cloud, size: 24, color: Colors.blue),
               SizedBox(width: 8),
               Text('Погода: ${weather.description}', style: TextStyle(fontSize: 16)),
             ],
           ),
           Row(
             children: [
-              Icon(Icons.air, size: 24),  // Icon for wind speed
+              Icon(Icons.air, size: 24, color: Colors.grey),
               SizedBox(width: 8),
               Text('Скорость ветра: ${weather.windSpeed.ceil()} m/s', style: TextStyle(fontSize: 16)),
             ],
           ),
           Row(
             children: [
-              Icon(Icons.water_drop, size: 24),  // Icon for humidity
+              Icon(Icons.water_drop, size: 24, color: Colors.blue),
               SizedBox(width: 8),
               Text('Влажность: ${weather.humidity}%', style: TextStyle(fontSize: 16)),
             ],
           ),
           Row(
             children: [
-              Icon(Icons.cloud, size: 24),  // Icon for precipitation
+              Icon(Icons.cloud, size: 24),
               SizedBox(width: 8),
               Text('Осадки: ${weather.precipitation}', style: TextStyle(fontSize: 16)),
             ],
@@ -514,10 +543,6 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-
-
-
-  // Виджет карточки истории погоды
   Widget _buildWeatherHistoryCard(Map<String, dynamic> weather) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -623,7 +648,6 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 }
-
 
 class SettingsPage extends StatefulWidget {
   @override
@@ -829,6 +853,82 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             SizedBox(height: 24,),
 
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class RecommendationPage extends StatelessWidget {
+  final WeatherData weatherData;
+  final String recommendation;
+
+  const RecommendationPage({
+    super.key,
+    required this.weatherData,
+    required this.recommendation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String todayDate = DateFormat('dd MMMM').format(DateTime.now());
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Рекомендация'),
+        centerTitle: true,
+        backgroundColor: Colors.lightBlueAccent,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              color: Colors.lightBlue.shade100,
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Text(
+                    'Сегодня - $todayDate',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Column(
+                        children: [
+                          Icon(Icons.cloud, size: 50, color: Colors.blueGrey),
+                          Text(weatherData.description),
+                        ],
+                      ),
+                      const SizedBox(width: 20),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('На улице: ${weatherData.temperature}°C'),
+                          Text('По ощущениям: ${weatherData.temperature - 3}°C'),
+                          Text('Влажность: ${weatherData.humidity}%'),
+                          Text('Ветер: ${weatherData.windSpeed} м/с'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                recommendation,
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
           ],
         ),
       ),
