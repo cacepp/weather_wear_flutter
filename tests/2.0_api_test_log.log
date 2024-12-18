@@ -1,0 +1,11 @@
+2024-12-18 17:49:22,770 - TEST PASSED: Valid input male user
+2024-12-18 17:49:23,127 - TEST PASSED: Valid input female user
+2024-12-18 17:49:23,191 - TEST PASSED: Invalid sex field
+2024-12-18 17:49:23,235 - TEST PASSED: Missing Temperature field
+2024-12-18 17:49:23,278 - TEST PASSED: Negative Age input
+2024-12-18 17:49:23,324 - TEST PASSED: Empty payload
+2024-12-18 17:49:23,797 - TEST PASSED: Zero temperature input
+2024-12-18 17:49:24,234 - TEST PASSED: High precipitation value
+2024-12-18 17:49:24,556 - TEST PASSED: High wind speed value
+2024-12-18 17:49:24,674 - TEST PASSED: Large age input
+2024-12-18 17:49:24,674 - TOTAL TESTS: 10, PASSED: 10, FAILED: 0

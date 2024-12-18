@@ -1,9 +1,10 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import numpy as np
 import pickle
 import tensorflow 
 from tensorflow.keras.models import load_model
+from typing import Literal
 
 app = FastAPI()
 
@@ -23,8 +24,8 @@ class InputData(BaseModel):
     Temperature: float
     Wind_Speed: float
     Precipitation: float
-    Sex: str
-    Age: int
+    Sex: Literal["male", "female"]
+    Age: int = Field(ge=0)
 
 
 @app.post("/predict")
