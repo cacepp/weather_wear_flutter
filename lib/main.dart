@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 
 import 'package:weather_wear_flutter/pages/city_picker_page.dart';
 import 'package:weather_wear_flutter/pages/date_picker_page.dart';
+import 'package:weather_wear_flutter/pages/recommendation_page.dart';
 
 import 'services/api_service.dart';
 import 'services/weather_service.dart';
@@ -166,7 +167,7 @@ class _HomePageState extends State<HomePage> {
         page = HistoryPage(db: widget.db);
         _selectedPageName = 'История';
       case 1:
-        page = WeatherPage();
+        page = WeatherPage(db: widget.db);
         _selectedPageName = 'Погода';
       case 2:
         page = SettingsPage();
@@ -176,6 +177,7 @@ class _HomePageState extends State<HomePage> {
           page = RecommendationPage(
             weatherData: appState.weatherData!,
             recommendation: appState.recommendation,
+            db: widget.db,
           );
           _selectedPageName = 'Рекомендация';
         } else {
@@ -235,6 +237,10 @@ class _HomePageState extends State<HomePage> {
 }
 
 class WeatherPage extends StatefulWidget {
+  final Database db;
+
+  const WeatherPage({super.key, required this.db});
+
   @override
   State<WeatherPage> createState() => _WeatherPageState();
 }
@@ -368,24 +374,25 @@ class _WeatherPageState extends State<WeatherPage> {
           ),
 
           SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                await appState.sendPromptToApi();
+          ElevatedButton(
+            onPressed: () async {
+              await appState.sendPromptToApi();
 
-                if (appState.weatherData != null) {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => RecommendationPage(
-                        weatherData: appState.weatherData!,
-                        recommendation: appState.recommendation,
-                      ),
+              if (appState.weatherData != null) {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RecommendationPage(
+                      weatherData: appState.weatherData!,
+                      recommendation: appState.recommendation,
+                      db: widget.db
                     ),
-                  );
-                }
-              },
-              child: Text('Получить рекомендацию'),
-            )
+                  ),
+                );
+              }
+            },
+            child: Text('Получить рекомендацию'),
+          ),
         ],
       ),
     );
@@ -443,7 +450,7 @@ class WeatherDetails extends StatelessWidget {
           ),
           Row(
             children: [
-              Icon(Icons.cloud, size: 24),
+              Icon(Icons.cloudy_snowing, size: 24),
               SizedBox(width: 8),
               Text('Осадки: ${weather.precipitation}', style: TextStyle(fontSize: 16)),
             ],
@@ -853,82 +860,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             SizedBox(height: 24,),
 
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class RecommendationPage extends StatelessWidget {
-  final WeatherData weatherData;
-  final String recommendation;
-
-  const RecommendationPage({
-    super.key,
-    required this.weatherData,
-    required this.recommendation,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final String todayDate = DateFormat('dd MMMM').format(DateTime.now());
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Рекомендация'),
-        centerTitle: true,
-        backgroundColor: Colors.lightBlueAccent,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              color: Colors.lightBlue.shade100,
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Text(
-                    'Сегодня - $todayDate',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Column(
-                        children: [
-                          Icon(Icons.cloud, size: 50, color: Colors.blueGrey),
-                          Text(weatherData.description),
-                        ],
-                      ),
-                      const SizedBox(width: 20),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('На улице: ${weatherData.temperature}°C'),
-                          Text('По ощущениям: ${weatherData.temperature - 3}°C'),
-                          Text('Влажность: ${weatherData.humidity}%'),
-                          Text('Ветер: ${weatherData.windSpeed} м/с'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                recommendation,
-                style: const TextStyle(fontSize: 18),
-              ),
-            ),
           ],
         ),
       ),
