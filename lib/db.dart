@@ -47,7 +47,7 @@ class Recommendation {
   final int UserRating;
 
   const Recommendation({
-    required this.id,
+    this.id,
     required this.Temperature,
     required this.Wet,
     required this.WindDirection,

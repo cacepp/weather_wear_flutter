@@ -9,7 +9,6 @@ import 'package:sqflite/sqflite.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
 
 import 'package:weather_wear_flutter/pages/city_picker_page.dart';
 import 'package:weather_wear_flutter/pages/date_picker_page.dart';
@@ -38,7 +37,7 @@ void main() async {
   );
 
   // Срабатывает при запуске приложения (в проде убрать)
-  await populateDatabase(db);
+  // await populateDatabase(db);
 
   runApp(App(db: db));
 }
@@ -568,7 +567,6 @@ class _HistoryPageState extends State<HistoryPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Заголовок с датой
           Text(
             weather['Date'],
             style: const TextStyle(
@@ -580,7 +578,6 @@ class _HistoryPageState extends State<HistoryPage> {
           const SizedBox(height: 10),
           Row(
             children: [
-              // Иконка погоды и осадки
               Column(
                 children: [
                   Icon(
@@ -602,16 +599,15 @@ class _HistoryPageState extends State<HistoryPage> {
                 ],
               ),
               const SizedBox(width: 20),
-              // Температуры и влажность
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Temperature: ${weather['Temperature']}°C',
+                    'Temperature: ${weather['Temperature'].toInt()}°C',
                     style: const TextStyle(fontSize: 16),
                   ),
                   Text(
-                    'Feels like: ${weather['FeelingTemperature']}°C',
+                    'Feels like: ${weather['FeelingTemperature'].toInt()}°C',
                     style: const TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 5),
@@ -632,13 +628,11 @@ class _HistoryPageState extends State<HistoryPage> {
             ],
           ),
           const SizedBox(height: 10),
-          // Текст рекомендации
           Text(
             weather['RecommendationText'],
             style: const TextStyle(fontSize: 14, color: Colors.black87),
           ),
           const SizedBox(height: 10),
-          // Оценка пользователя
           Row(
             children: [
               const Text(
