@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../services/weather_service.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../db.dart';
 
 class RecommendationPage extends StatefulWidget {
@@ -54,6 +55,43 @@ class _RecommendationPageState extends State<RecommendationPage> {
     });
   }
 
+  Future<void> _shareToTG() async {
+    final String todayDate = DateFormat('dd MMMM').format(DateTime.now());
+
+    // Форматируем текст для публикации
+    double displayTemperature = _temperatureUnit
+        ? widget.weatherData.temperature
+        : (widget.weatherData.temperature * 1.8) + 32;
+
+    String temperatureUnitLabel = _temperatureUnit ? "°C" : "°F";
+
+    final String textToShare = '''
+Текущая погода на $todayDate:
+Погода: ${widget.weatherData.description}
+Температура: ${displayTemperature.toStringAsFixed(1)}$temperatureUnitLabel
+Влажность: ${widget.weatherData.humidity.toStringAsFixed(0)}%
+Скорость ветра: ${widget.weatherData.windSpeed.toStringAsFixed(1)} м/с
+
+Рекомендация: ${widget.recommendation}
+    ''';
+
+    // Кодируем текст
+    final String encodedText = Uri.encodeComponent(textToShare);
+
+    // Формируем ссылку для Telegram
+    final Uri telegramUrl =
+    Uri.parse('https://t.me/share/url?text=$encodedText');
+
+    // Открываем ссылку
+    if (await canLaunchUrl(telegramUrl)) {
+      await launchUrl(telegramUrl, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось открыть Telegram')),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -70,9 +108,6 @@ class _RecommendationPageState extends State<RecommendationPage> {
 
     String temperatureUnitLabel = _temperatureUnit ? "°C" : "°F";
 
-    double displayTemperatureFeeling = _temperatureUnit
-        ? widget.weatherData.temperature
-        : ((widget.weatherData.temperature - 3) * 1.8) + 32;
 
     return Scaffold(
       appBar: AppBar(
@@ -110,10 +145,9 @@ class _RecommendationPageState extends State<RecommendationPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Температура: ${displayTemperature.ceil()}$temperatureUnitLabel'),
-                          Text('По ощущениям: ${displayTemperatureFeeling.ceil()} $temperatureUnitLabel'),
-                          Text('Влажность: ${widget.weatherData.humidity}%'),
-                          Text('Ветер: ${widget.weatherData.windSpeed} м/с'),
+                          Text('Температура: ${displayTemperature.toStringAsFixed(1)}$temperatureUnitLabel'),
+                          Text('Влажность: ${widget.weatherData.humidity.toStringAsFixed(0)}%'),
+                          Text('Ветер: ${widget.weatherData.windSpeed.toStringAsFixed(1)} м/с'),
                         ],
                       ),
                     ],
@@ -148,12 +182,15 @@ class _RecommendationPageState extends State<RecommendationPage> {
               },
             ),
             SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                _saveRecommendation();
-                print('Сохранено');
-              },
+            ElevatedButton(onPressed: () {
+              _saveRecommendation();
+              print('Сохранено');
+            },
               child: Text("Сохранить"),
+            ),
+            ElevatedButton(
+              onPressed: _shareToTG,
+              child: Text("Поделиться в TG"),
             ),
           ],
         ),
