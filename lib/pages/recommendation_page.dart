@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../services/weather_service.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
@@ -43,9 +44,35 @@ class _RecommendationPageState extends State<RecommendationPage> {
     );
   }
 
+  var _temperatureUnit = true;
+
+  Future<void> _loadTemperatureUnit() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      // true: Цельсий, false: Фаренгейт
+      _temperatureUnit = prefs.getBool('temperature') ?? true;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTemperatureUnit();
+  }
+
   @override
   Widget build(BuildContext context) {
     final String todayDate = DateFormat('dd MMMM').format(DateTime.now());
+
+    double displayTemperature = _temperatureUnit
+        ? widget.weatherData.temperature
+        : (widget.weatherData.temperature * 1.8) + 32;
+
+    String temperatureUnitLabel = _temperatureUnit ? "°C" : "°F";
+
+    double displayTemperatureFeeling = _temperatureUnit
+        ? widget.weatherData.temperature
+        : ((widget.weatherData.temperature - 3) * 1.8) + 32;
 
     return Scaffold(
       appBar: AppBar(
@@ -83,8 +110,8 @@ class _RecommendationPageState extends State<RecommendationPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('На улице: ${widget.weatherData.temperature}°C'),
-                          Text('По ощущениям: ${widget.weatherData.temperature - 3}°C'),
+                          Text('Температура: ${displayTemperature.ceil()}$temperatureUnitLabel'),
+                          Text('По ощущениям: ${displayTemperatureFeeling.ceil()} $temperatureUnitLabel'),
                           Text('Влажность: ${widget.weatherData.humidity}%'),
                           Text('Ветер: ${widget.weatherData.windSpeed} м/с'),
                         ],
@@ -124,7 +151,7 @@ class _RecommendationPageState extends State<RecommendationPage> {
             ElevatedButton(
               onPressed: () {
                 _saveRecommendation();
-                print('saved');
+                print('Сохранено');
               },
               child: Text("Сохранить"),
             ),
