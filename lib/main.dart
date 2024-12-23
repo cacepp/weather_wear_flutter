@@ -251,6 +251,7 @@ class _WeatherPageState extends State<WeatherPage> {
   void initState() {
     super.initState();
     _loadCityFromPreferences();
+    _loadTemperatureUnit();
   }
 
   Future<void> _loadCityFromPreferences() async {
@@ -265,6 +266,16 @@ class _WeatherPageState extends State<WeatherPage> {
       await appState.fetchCurrentWeather();
       await appState.fetchWeatherForecast();
     }
+  }
+
+  var _temperatureUnit = true;
+
+  Future<void> _loadTemperatureUnit() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      // true: Цельсий, false: Фаренгейт
+      _temperatureUnit = prefs.getBool('temperature') ?? true;
+    });
   }
 
   @override
@@ -313,6 +324,12 @@ class _WeatherPageState extends State<WeatherPage> {
             itemCount: appState.weatherForecast.length,
             itemBuilder: (context, index, realIndex) {
               var forecast = appState.weatherForecast[index];
+              double displayTemperature = _temperatureUnit
+                  ? forecast.temperature
+                  : (forecast.temperature * 1.8) + 32;
+
+              String temperatureUnitLabel = _temperatureUnit ? "°C" : "°F";
+
               return Container(
                 padding: EdgeInsets.all(10),
                 margin: EdgeInsets.symmetric(vertical: 8),
@@ -328,7 +345,10 @@ class _WeatherPageState extends State<WeatherPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.thermostat, size: 24, color: Colors.orange),
-                        Text('${forecast.temperature.ceil()}°C', style: TextStyle(fontSize: 20)),
+                        Text(
+                          'Температура: ${displayTemperature.ceil()}$temperatureUnitLabel',
+                          style: TextStyle(fontSize: 20),
+                        )
                       ],
                     ),
                     SizedBox(height: 8),
@@ -408,13 +428,40 @@ class _WeatherPageState extends State<WeatherPage> {
   }
 }
 
-class WeatherDetails extends StatelessWidget {
+class WeatherDetails extends StatefulWidget {
   final WeatherData weather;
 
   WeatherDetails({required this.weather});
 
   @override
+  State<WeatherDetails> createState() => _WeatherDetailsState();
+}
+
+class _WeatherDetailsState extends State<WeatherDetails> {
+  var _temperatureUnit = true;
+
+  Future<void> _loadTemperatureUnit() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      // true: Цельсий, false: Фаренгейт
+      _temperatureUnit = prefs.getBool('temperature') ?? true;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTemperatureUnit();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    double displayTemperature = _temperatureUnit
+        ? widget.weather.temperature
+        : (widget.weather.temperature * 1.8) + 32;
+
+    String temperatureUnitLabel = _temperatureUnit ? "°C" : "°F";
+
     return Padding(
       padding: const EdgeInsets.all(10.0),
       child: Column(
@@ -423,35 +470,38 @@ class WeatherDetails extends StatelessWidget {
             children: [
               Icon(Icons.thermostat, size: 24, color: Colors.orange),
               SizedBox(width: 8),
-              Text('Температура: ${weather.temperature.ceil()}°C', style: TextStyle(fontSize: 18)),
+              Text(
+                'Температура: ${displayTemperature.ceil()}$temperatureUnitLabel',
+                style: TextStyle(fontSize: 18),
+              )
             ],
           ),
           Row(
             children: [
               Icon(Icons.cloud, size: 24, color: Colors.blue),
               SizedBox(width: 8),
-              Text('Погода: ${weather.description}', style: TextStyle(fontSize: 16)),
+              Text('Погода: ${widget.weather.description}', style: TextStyle(fontSize: 16)),
             ],
           ),
           Row(
             children: [
               Icon(Icons.air, size: 24, color: Colors.grey),
               SizedBox(width: 8),
-              Text('Скорость ветра: ${weather.windSpeed.ceil()} m/s', style: TextStyle(fontSize: 16)),
+              Text('Скорость ветра: ${widget.weather.windSpeed.ceil()} m/s', style: TextStyle(fontSize: 16)),
             ],
           ),
           Row(
             children: [
               Icon(Icons.water_drop, size: 24, color: Colors.blue),
               SizedBox(width: 8),
-              Text('Влажность: ${weather.humidity}%', style: TextStyle(fontSize: 16)),
+              Text('Влажность: ${widget.weather.humidity}%', style: TextStyle(fontSize: 16)),
             ],
           ),
           Row(
             children: [
               Icon(Icons.cloudy_snowing, size: 24),
               SizedBox(width: 8),
-              Text('Осадки: ${weather.precipitation}', style: TextStyle(fontSize: 16)),
+              Text('Осадки: ${widget.weather.precipitation}', style: TextStyle(fontSize: 16)),
             ],
           ),
         ],
@@ -476,6 +526,7 @@ class _HistoryPageState extends State<HistoryPage> {
   void initState() {
     super.initState();
     _loadHistoryData();
+    _loadTemperatureUnit();
   }
 
   Future<void> _loadHistoryData() async {
@@ -514,6 +565,16 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
+  var _temperatureUnit = true;
+
+  Future<void> _loadTemperatureUnit() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      // true: Цельсий, false: Фаренгейт
+      _temperatureUnit = prefs.getBool('temperature') ?? true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -532,11 +593,11 @@ class _HistoryPageState extends State<HistoryPage> {
             )
                 : Center(child: Text('Нет запросов.')),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           ElevatedButton(
             onPressed: () {
               _deleteHistory();
-              print('History deleted');
+              print('История удалена');
               _loadHistoryData();
             },
             style: ElevatedButton.styleFrom(
@@ -550,6 +611,16 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Widget _buildWeatherHistoryCard(Map<String, dynamic> weather) {
+    double displayTemperature = _temperatureUnit
+        ? weather['Temperature'].toDouble()
+        : (weather['Temperature'].toDouble() * 1.8) + 32;
+
+    String temperatureUnitLabel = _temperatureUnit ? "°C" : "°F";
+
+    double displayTemperatureFeeling = _temperatureUnit
+        ? weather['Temperature'].toDouble()
+        : ((weather['Temperature'].toDouble() - 3) * 1.8) + 32;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(12),
@@ -568,7 +639,7 @@ class _HistoryPageState extends State<HistoryPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            weather['Date'],
+            weather['Дата'],
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -603,11 +674,11 @@ class _HistoryPageState extends State<HistoryPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Temperature: ${weather['Temperature'].toInt()}°C',
+                    'Температура: ${displayTemperature.ceil()} $temperatureUnitLabel',
                     style: const TextStyle(fontSize: 16),
                   ),
                   Text(
-                    'Feels like: ${weather['FeelingTemperature'].toInt()}°C',
+                    'Ощущается как: ${displayTemperatureFeeling.ceil()} $temperatureUnitLabel',
                     style: const TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 5),
@@ -636,7 +707,7 @@ class _HistoryPageState extends State<HistoryPage> {
           Row(
             children: [
               const Text(
-                'User Rating:',
+                'Оценка:',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(width: 5),
