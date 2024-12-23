@@ -639,7 +639,7 @@ class _HistoryPageState extends State<HistoryPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            weather['Дата'],
+            weather['Date'],
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
