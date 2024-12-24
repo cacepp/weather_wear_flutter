@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   // URL API
-  static const String baseUrl = 'http://195.133.13.249:8000/predict';
+  static const String baseUrl = 'http://176.32.33.24:8000/predict';
 
   Future<Map<String, dynamic>> getRecommendations({
     required double temperature,
