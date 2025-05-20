@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// Модель для текущей погоды
 class WeatherData {
   final double temperature;
   final String description;
@@ -31,8 +30,7 @@ class WeatherData {
     int humidity = (main['humidity'] is num) ? main['humidity'].toInt() : 0;
     String description = weatherDescriptionData['description'] ?? 'No description';
 
-    // Обработка осадков
-    String precipitation = 'No precipitation';
+    String precipitation = 'Нет';
     if (json.containsKey('snow') && json['snow'] is Map<String, dynamic>) {
       var snow = json['snow'];
       double snowAmount = (snow['3h'] is num) ? snow['3h'].toDouble() : 0.0;
@@ -54,7 +52,6 @@ class WeatherData {
   }
 }
 
-// Модель для прогноза погоды
 class WeatherForecast {
   final String date;
   final double temperature;
@@ -91,13 +88,12 @@ class WeatherForecast {
 class WeatherService {
   final String currentWeatherUrl = 'https://api.openweathermap.org/data/2.5/weather';
   final String forecastUrl = 'https://api.openweathermap.org/data/2.5/forecast';
+  final apiKey = dotenv.env['API_KEY'];
 
-  // Получение текущей погоды
-  Future<WeatherData> fetchCurrentWeather(String city) async {
+  /// Получение текущей погоды
+  Future<dynamic> fetchCurrentWeather(String city) async {
     try {
-      // Достаем API_KEY из .env
-      final apiKey = dotenv.env['API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
+      if (apiKey == null || apiKey!.isEmpty) {
         throw Exception('API_KEY is not defined in .env');
       }
 
@@ -107,7 +103,6 @@ class WeatherService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        // Возвращаем объект WeatherData, созданный из JSON
         return WeatherData.fromJson(data);
       } else {
         throw Exception('Failed to load current weather: ${response.statusCode}');
@@ -120,9 +115,7 @@ class WeatherService {
   // Получение прогноза на 5 дней
   Future<List<WeatherForecast>> fetchWeatherForecast(String city) async {
     try {
-      // Достаем API_KEY из .env
-      final apiKey = dotenv.env['API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
+      if (apiKey == null || apiKey!.isEmpty) {
         throw Exception('API_KEY is not defined in .env');
       }
 

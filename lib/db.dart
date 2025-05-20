@@ -2,7 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:sqflite/sqlite_api.dart';
 
 Future<List<Map<String, Object?>>> getHistory(Database db) async {
-  return await db.query('tbl_history');
+  return await db.query('tbl_history', orderBy: "id DESC");
 }
 
 Future<void> addRecord(Recommendation record, Database db) async {

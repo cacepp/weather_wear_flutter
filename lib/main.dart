@@ -8,11 +8,15 @@ import 'package:sqflite/sqflite.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:weather_wear_flutter/clothing_predictor.dart';
 import 'package:weather_wear_flutter/pages/history_page.dart';
 
 import 'package:weather_wear_flutter/pages/recommendation_page.dart';
 import 'package:weather_wear_flutter/pages/settings_page.dart';
+import 'package:weather_wear_flutter/services/weather_service_v2.dart';
+import 'package:weather_wear_flutter/settings_repository.dart';
 
+import 'input_preparator.dart';
 import 'services/api_service.dart';
 import 'services/weather_service.dart';
 import 'db.dart';
@@ -394,20 +398,49 @@ class _WeatherPageState extends State<WeatherPage> {
           SizedBox(height: 20),
           ElevatedButton(
             onPressed: () async {
-              await appState.sendPromptToApi();
+              var weatherServiceV2 = WeatherServiceV2();
+              var settingsRepository = SettingsRepository();
+              final settings = await settingsRepository.getSettings();
 
-              if (appState.weatherData != null) {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => RecommendationPage(
-                      weatherData: appState.weatherData!,
-                      recommendation: appState.recommendation,
-                      db: widget.db
-                    ),
+              final rawWeather = await weatherServiceV2.fetchCurrentWeather(settings.city);
+
+              final input = prepareInput(
+                apiResponse: rawWeather,
+                birthDate: DateTime.parse(settings.birthDate),
+                gender: settings.gender ? 'male' : 'female',
+              );
+
+              final predictor = ClothingPredictor();
+              await predictor.loadModel();
+              final output = predictor.predict(input);
+
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RecommendationPage(
+                    weatherData: appState.weatherData!,
+                    recommendation: predictor.formatOutput(output),
+                    db: widget.db
                   ),
-                );
-              }
+                ),
+              );
+              // var weatherServiceV2 = WeatherServiceV2();
+              //
+              // print(await weatherServiceV2.fetchCurrentWeather('Петрозаводск'));
+              // await appState.sendPromptToApi();
+              //
+              // if (appState.weatherData != null) {
+              //   await Navigator.push(
+              //     context,
+              //     MaterialPageRoute(
+              //       builder: (context) => RecommendationPage(
+              //         weatherData: appState.weatherData!,
+              //         recommendation: appState.recommendation,
+              //         db: widget.db
+              //       ),
+              //     ),
+              //   );
+              // }
             },
             child: Text('Получить рекомендацию'),
           ),
